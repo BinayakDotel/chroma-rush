@@ -1,9 +1,13 @@
 class_name Sfx
 extends Node
-## Sound effects and a looping synthwave track, all synthesised at startup.
+## Sound effects and a looping synthwave track, all synthesised at startup. Effects play on the
+## "SFX" bus and music on the "Music" bus, so the Settings volumes apply to each separately.
 
 const RATE := 22050
 const BPM := 128.0
+
+## The game's audio node, so UI code can play a click without holding a reference.
+static var instance: Sfx
 
 var _sounds := {}
 var _players: Array[AudioStreamPlayer] = []
@@ -12,6 +16,8 @@ var _music := AudioStreamPlayer.new()
 
 
 func _ready() -> void:
+	instance = self
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_sounds["switch"] = _tone(520.0, 780.0, 0.07, "square", 0.22)
 	_sounds["gate"] = _tone(700.0, 1400.0, 0.16, "sine", 0.45)
 	_sounds["orb"] = _tone(1600.0, 2200.0, 0.08, "sine", 0.28)
@@ -25,14 +31,31 @@ func _ready() -> void:
 	_sounds["fuel"] = _tone(300.0, 1100.0, 0.25, "sine", 0.45, 0.1)
 	_sounds["warn"] = _tone(880.0, 700.0, 0.25, "square", 0.18)
 	_sounds["sputter"] = _tone(140.0, 45.0, 0.6, "square", 0.3, 0.45)
+	_sounds["click"] = _tone(900.0, 1300.0, 0.05, "sine", 0.3)
+	_sounds["coin"] = _tone(1200.0, 1900.0, 0.12, "square", 0.14)
+	_sounds["unlock"] = _tone(400.0, 1600.0, 0.5, "square", 0.22)
+	_sounds["revive"] = _tone(250.0, 1400.0, 0.6, "sine", 0.45, 0.05)
 	for i in 10:
 		var player := AudioStreamPlayer.new()
+		player.bus = &"SFX"
 		add_child(player)
 		_players.append(player)
 	_music.stream = _build_music()
 	_music.volume_db = -8.0
+	_music.bus = &"Music"
 	add_child(_music)
 	_music.play()
+
+
+static func click() -> void:
+	if is_instance_valid(instance):
+		instance.play("click", 1.0, -8.0)
+
+
+## Softens the music while paused or in menus layered over a run.
+func duck(on: bool) -> void:
+	var tween := create_tween()
+	tween.tween_property(_music, "volume_db", -18.0 if on else -8.0, 0.25)
 
 
 func play(sound: StringName, pitch := 1.0, volume_db := 0.0) -> void:
@@ -106,8 +129,8 @@ func _build_music() -> AudioStreamWAV:
 		lead_phase += root * 4.0 * pow(2.0, semis / 12.0) / RATE
 		var lead := (1.0 if fposmod(lead_phase, 1.0) < 0.5 else -1.0) * exp(-ts * 14.0)
 
-		var duck := 1.0 - 0.7 * exp(-tb * 8.0)
-		var mix := kick * 0.55 + hat * 0.07 + (bass * 0.22 + lead * 0.06) * duck
+		var sidechain := 1.0 - 0.7 * exp(-tb * 8.0)
+		var mix := kick * 0.55 + hat * 0.07 + (bass * 0.22 + lead * 0.06) * sidechain
 		data.encode_s16(i * 2, int(clampf(mix, -1.0, 1.0) * 32000.0))
 	return _wav(data, true)
 

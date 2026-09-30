@@ -12,6 +12,9 @@ extends Node
 ##   --shots=<t1,t2,...>   save screenshots at these game times (seconds)
 ##   --shot-dir=<path>     where screenshots go (default user://shots)
 ##   --time-scale=<x>      speed the simulation up
+##   --tutorial-done       skip the first-run how-to (saves go to user://dev, never the real profile)
+##   --flow-test           run the end-to-end flow checks in flow_test.gd and exit
+##   --screen=<name>       open a screen for screenshots: settings | shop | howto | pause | results
 ##   --showcase=<yaw>      close-up camera orbiting the vehicle at this angle (degrees)
 
 var game: Node
@@ -27,6 +30,11 @@ var _runs := 0
 func _ready() -> void:
 	# Run after the game each frame, so the showcase camera wins.
 	process_priority = 100
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	Profile.use_sandbox()
+	Settings.use_sandbox()
+	if _flag("tutorial-done"):
+		Profile.mark_tutorial_done()
 	game = get_node("Game")
 	for arg in OS.get_cmdline_user_args():
 		var parts := arg.trim_prefix("--").split("=", true, 1)
@@ -43,6 +51,10 @@ func _ready() -> void:
 		game.call("dev_start_run")
 	_baseline = _memory()
 	print("[dev] start ", _baseline)
+	if _args.has("screen"):
+		_open_screen(str(_args.screen))
+	if _args.has("flow-test"):
+		await preload("res://scripts/dev/flow_test.gd").new().run(self)
 
 
 func _process(delta: float) -> void:
@@ -112,6 +124,28 @@ func _drive() -> void:
 	if want_lane != player.lane:
 		game.call("dev_shift", signi(want_lane - player.lane))
 	game.call("dev_prism")
+
+
+func _flag(name: String) -> bool:
+	return ("--" + name) in OS.get_cmdline_user_args()
+
+
+func _open_screen(screen: String) -> void:
+	var ui: UiRoot = game.get("ui")
+	match screen:
+		"settings":
+			ui.open_settings()
+		"shop":
+			ui.open_shop()
+		"howto":
+			ui.open_howto(false)
+		"pause", "results":
+			game.call("dev_start_run")
+			await get_tree().create_timer(2.0).timeout
+			if screen == "pause":
+				ui.pause_requested.emit()
+			else:
+				game.call("_end_run", "CRASHED!", true)
 
 
 func _showcase(yaw: float) -> void:
