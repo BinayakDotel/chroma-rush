@@ -1,8 +1,15 @@
 class_name Track
 extends Node3D
 ## Endless twisting track. Generates path samples ahead of the player, builds the road in
-## chunks (dressed by the theme's Scenery), and spawns obstacle rows, orbs and fuel on it. Rows
-## with colour gates get the theme's arch; orbs take the shape of their colour's symbol.
+## chunks (dressed by the theme's Scenery), and spawns obstacle rows, orbs and fuel on it.
+##
+## Memory stays flat on arbitrarily long runs:
+## - path samples are kept in a sliding window (`_base` is the global index of sample 0);
+## - chunks, rows, orbs, fuel and landmarks behind the player are freed as it passes;
+## - a floating origin shifts the whole world back near (0, 0, 0) every REBASE_DISTANCE metres,
+##   so 32-bit vertex positions never lose precision far from the start.
+
+signal rebased(offset: Vector3)
 
 const RoadShader = preload("res://shaders/road.gdshader")
 const GateShader = preload("res://shaders/gate.gdshader")
@@ -13,6 +20,9 @@ const CHUNK := 40          # samples per road mesh
 const AHEAD := 400.0       # build road this far ahead of the player
 const LOOKAHEAD := 750.0   # extra path samples beyond that, for placing landmarks
 const BEHIND := 30.0       # free anything further behind than this
+const KEEP_SAMPLES_BEHIND := 1000
+const TRIM_SAMPLES_AT := 1400
+const REBASE_DISTANCE := 1500.0
 const HALF_WIDTH := 3.9
 const SIDE_TOP := 0.0
 const SIDE_BOTTOM := -1.2
@@ -40,6 +50,7 @@ var scenery: Scenery
 
 var _pos := PackedVector3Array()
 var _rot: Array[Quaternion] = []
+var _base := 0
 var _yaw := 0.0
 var _rng := RandomNumberGenerator.new()
 var _turn_noise := FastNoiseLite.new()
@@ -100,6 +111,7 @@ func reset(seed_value: int) -> void:
 	_chunks.clear()
 	_pos.clear()
 	_rot.clear()
+	_base = 0
 	_yaw = 0.0
 	_next_chunk = 0
 	_next_row_s = FIRST_ROW
@@ -111,7 +123,7 @@ func reset(seed_value: int) -> void:
 	update(0.0)
 
 
-## Generates track ahead of distance `s` and frees what is behind it.
+## Generates track ahead of distance `s`, frees what is behind it and keeps the origin close.
 func update(s: float) -> void:
 	_ensure_samples(s + AHEAD + LOOKAHEAD)
 	while (_next_chunk + 1) * CHUNK * STEP <= s + AHEAD:
@@ -122,11 +134,13 @@ func update(s: float) -> void:
 		_spawn_row()
 	scenery.update(s)
 	_free_behind(s - BEHIND)
+	_trim_samples(s)
+	_maybe_rebase(s)
 
 
 ## Track frame at distance `s`: origin on the road centre, basis x = right, y = up, -z = forward.
 func frame_at(s: float) -> Transform3D:
-	var f := clampf(s / STEP, 0.0, _pos.size() - 1.001)
+	var f := clampf(s / STEP - _base, 0.0, _pos.size() - 1.001)
 	var i := int(f)
 	var t := f - i
 	return Transform3D(Basis(_rot[i].slerp(_rot[i + 1], t)), _pos[i].lerp(_pos[i + 1], t))
@@ -135,7 +149,7 @@ func frame_at(s: float) -> Transform3D:
 ## True when no path sample from a while before `around_s` to the end of the generated
 ## path lies within `radius` of `pos` (measured horizontally unless `in_3d`).
 func is_clear(pos: Vector3, radius: float, in_3d: bool, around_s: float) -> bool:
-	var centre := int(around_s / STEP)
+	var centre := int(around_s / STEP) - _base
 	for i in range(maxi(centre - 800, 0), _pos.size(), 3):
 		var d := _pos[i] - pos
 		if not in_3d:
@@ -156,6 +170,11 @@ func next_row(s: float) -> Dictionary:
 		if not row.done and row.s >= s:
 			return row
 	return {}
+
+
+## Number of path samples currently held; bounded no matter how far the run goes.
+func sample_count() -> int:
+	return _pos.size()
 
 
 ## A gate the player matched: flash, ripple outwards and dissolve.
@@ -183,6 +202,7 @@ func smash_cell(row: Dictionary, lane: int) -> void:
 
 func collect_fuel(fuel: Dictionary) -> void:
 	var node: Node3D = fuel.node
+	# Animate scale only: position tweens would fight a floating-origin shift.
 	var tween := node.create_tween()
 	tween.tween_property(node, "scale", Vector3(1.8, 0.01, 1.8), 0.15)
 	tween.tween_callback(node.queue_free)
@@ -196,13 +216,13 @@ func collect_orb(orb: Dictionary) -> void:
 
 
 func _ensure_samples(distance: float) -> void:
-	var needed := int(distance / STEP) + 2
+	var needed := int(distance / STEP) + 2 - _base
 	while _pos.size() < needed:
 		_add_sample()
 
 
 func _add_sample() -> void:
-	var i := _pos.size()
+	var i := _base + _pos.size()
 	var s := i * STEP
 	# Start straight and flat, then twist more the further you get.
 	var twist := smoothstep(50.0, 250.0, s) * (0.7 + 0.6 * Defs.difficulty(s))
@@ -217,6 +237,30 @@ func _add_sample() -> void:
 	_rot.append(basis.get_rotation_quaternion())
 
 
+## Drops samples far behind the player so the path buffer never grows.
+func _trim_samples(s: float) -> void:
+	var behind := int(s / STEP) - _base
+	if behind < TRIM_SAMPLES_AT:
+		return
+	var drop := behind - KEEP_SAMPLES_BEHIND
+	_pos = _pos.slice(drop)
+	_rot = _rot.slice(drop)
+	_base += drop
+
+
+## Shifts every generated thing (and the path) so the player stays near the world origin.
+func _maybe_rebase(s: float) -> void:
+	var origin := frame_at(s).origin
+	if origin.length() < REBASE_DISTANCE:
+		return
+	for i in _pos.size():
+		_pos[i] -= origin
+	for child in get_children():
+		if child is Node3D:
+			child.position -= origin
+	rebased.emit(origin)
+
+
 func _build_chunk(c: int) -> void:
 	var first := c * CHUNK
 	var road := SurfaceTool.new()
@@ -225,8 +269,8 @@ func _build_chunk(c: int) -> void:
 	sides.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for k in CHUNK + 1:
 		var i := first + k
-		var b := Basis(_rot[i])
-		var p := _pos[i]
+		var b := Basis(_rot[i - _base])
+		var p := _pos[i - _base]
 		var v := i * STEP
 		road.set_normal(b.y)
 		road.set_uv(Vector2(0.0, v))

@@ -226,6 +226,16 @@ func set_color(i: int) -> void:
 	_body.scale = Vector3.ONE * 1.18
 
 
+## Keeps world-space effects in place when the track shifts the world origin.
+func shift_origin(offset: Vector3) -> void:
+	for piece in _debris:
+		var node: Node3D = piece.node
+		node.global_position -= offset
+		var ground: Transform3D = piece.ground
+		piece.ground = Transform3D(ground.basis, ground.origin - offset)
+	_trail.restart()
+
+
 ## Shatters the vehicle into fragments that bounce on the road.
 func explode() -> void:
 	_body.visible = false

@@ -46,6 +46,8 @@ var _themes := Themes.all()
 var _sun_dir := Vector3(0.0, 0.5, -1.0)
 var _coast := -1.0  # seconds spent rolling to a stop on an empty tank; -1 while fuelled
 var _low_fuel_warned := false
+## Set only by the developer harness: obstacles are smashed instead of ending the run.
+var dev_god := false
 
 
 func _ready() -> void:
@@ -53,6 +55,7 @@ func _ready() -> void:
 	hud.prism_pressed.connect(_activate_prism)
 	hud.theme_step.connect(_change_theme)
 	player.landed.connect(_on_landed)
+	track.rebased.connect(_on_track_rebased)
 	_apply_theme()
 	_enter_menu()
 
@@ -404,6 +407,9 @@ func _tick_prism(delta: float) -> void:
 
 
 func _crash(row: Dictionary) -> void:
+	if dev_god:
+		track.smash_cell(row, player.current_lane())
+		return
 	distance = minf(distance, row.s - 0.9)
 	player.transform = track.frame_at(distance)
 	player.ghost = false
@@ -460,6 +466,12 @@ func _set_color(index: int) -> void:
 	audio.play("switch", [1.0, 1.25, 1.5][index])
 
 
+## The track moved the world back towards the origin; move what lives outside it too.
+func _on_track_rebased(offset: Vector3) -> void:
+	cam.global_position -= offset
+	player.shift_origin(offset)
+
+
 func _on_landed() -> void:
 	if state == State.PLAYING:
 		audio.play("land", 1.0, -6.0)
@@ -503,3 +515,43 @@ func _save() -> void:
 	cfg.set_value("settings", "theme", theme_index)
 	cfg.save(SAVE_PATH)
 
+
+# --- developer hooks (used by scripts/dev/dev_harness.gd only) -------------
+
+func dev_select_world(world_id: String) -> void:
+	theme_index = Themes.index_of(world_id)
+	_apply_theme()
+	_enter_menu()
+
+
+func dev_start_run() -> void:
+	if state == State.DEAD:
+		_new_run()
+	if state != State.PLAYING:
+		_start()
+
+
+func dev_is_playing() -> bool:
+	return state == State.PLAYING
+
+
+## Soak-test god mode: a full tank and no crashes, so the run never ends.
+func dev_keep_alive() -> void:
+	fuel = 1.0
+	dev_god = true
+
+
+func dev_set_color(index: int) -> void:
+	_set_color(index)
+
+
+func dev_jump() -> void:
+	_jump()
+
+
+func dev_shift(direction: int) -> void:
+	_shift(direction)
+
+
+func dev_prism() -> void:
+	_activate_prism()
