@@ -34,6 +34,7 @@ var theme: Dictionary
 var material := StandardMaterial3D.new()
 var block_meshes: Array[ArrayMesh] = []
 var hurdle_mesh: ArrayMesh
+var arch_mesh: ArrayMesh
 var fuel_mesh: ArrayMesh
 var fuel_halo_mesh: ArrayMesh
 var fuel_beam_mesh: ArrayMesh
@@ -69,8 +70,13 @@ func _init(track: Track, theme_data: Dictionary) -> void:
 	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	glow.albedo_color = Color(2.2, 2.2, 2.2)
 	for i in VARIANTS:
-		block_meshes.append(Props.obstacle(theme.block, 30 + i * 17, material, glow))
-	hurdle_mesh = Props.obstacle(theme.hurdle, 90, material, glow)
+		block_meshes.append(Obstacles.block(theme.block, 30 + i * 17, material, glow))
+	var hazard := ShaderMaterial.new()
+	hazard.shader = preload("res://shaders/hazard.gdshader")
+	for key: String in theme.get("hazard", {}):
+		hazard.set_shader_parameter(key, theme.hazard[key])
+	hurdle_mesh = Obstacles.hurdle(theme.hurdle, material, glow, hazard)
+	arch_mesh = Obstacles.arch(theme.arch, material, glow)
 	# Pickups get a dark outline so they read against any background.
 	var pickup_material: StandardMaterial3D = material.duplicate()
 	pickup_material.next_pass = outline_material(1.12, false)
@@ -89,6 +95,13 @@ func _init(track: Track, theme_data: Dictionary) -> void:
 	beam_material.vertex_color_use_as_albedo = true
 	beam_material.albedo_color = Color(fuel_color.r, fuel_color.g, fuel_color.b, 0.3)
 	fuel_beam_mesh = Props.build("fuel_beam", 7, beam_material)
+	_prewarm()
+
+
+## Builds every prop and landmark mesh for the theme up front, so nothing is generated mid-run.
+func _prewarm() -> void:
+	for entry: Array in theme.near + theme.far:
+		_mesh(entry[0])
 
 
 ## Cartoon outline pass: a slightly larger, inside-out copy drawn in a dark colour.

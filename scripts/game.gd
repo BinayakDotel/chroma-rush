@@ -165,10 +165,11 @@ func _apply_theme() -> void:
 	env.ambient_light_energy = theme.ambient_energy
 	sun.light_color = theme.light_color
 	sun.light_energy = theme.light_energy
-	Defs.colors.assign(theme.gates)
-	hud.set_palette(Defs.colors)
+	hud.set_palette(Defs.COLORS)
 	track.set_theme(theme)
+	track.set_symbols_visible(Settings.color_symbols)
 	player.set_model(theme.player)
+	player.set_trail_style(theme.trail)
 	player.set_color(player.color_idx)
 	hud.set_theme_name(theme.name)
 
@@ -501,3 +502,4 @@ func _save() -> void:
 	cfg.set_value("score", "best", best)
 	cfg.set_value("settings", "theme", theme_index)
 	cfg.save(SAVE_PATH)
+
