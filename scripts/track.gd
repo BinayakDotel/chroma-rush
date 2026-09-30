@@ -1,7 +1,8 @@
 class_name Track
 extends Node3D
-## Endless twisting track. Generates path samples ahead of the player, builds the road
-## in chunks (dressed by the theme's Scenery), and spawns obstacle rows and orbs on it.
+## Endless twisting track. Generates path samples ahead of the player, builds the road in
+## chunks (dressed by the theme's Scenery), and spawns obstacle rows, orbs and fuel on it. Rows
+## with colour gates get the theme's arch; orbs take the shape of their colour's symbol.
 
 const RoadShader = preload("res://shaders/road.gdshader")
 const GateShader = preload("res://shaders/gate.gdshader")
@@ -21,7 +22,9 @@ const BANK := 6.0          # roll per unit of turn rate
 const FIRST_ROW := 90.0
 const FIRST_FUEL := 150.0
 const FUEL_EVERY := Vector2(130.0, 210.0)
-const GATE_SIZE := Vector2(2.2, 2.6)
+const GATE_SIZE := Vector2(2.1, 2.7)
+const GATE_BOTTOM := 0.05
+const GATE_TOP := GATE_BOTTOM + 2.7
 const SOLID_SIZE := Vector3(2.1, 2.4, 1.2)
 const LOW_SIZE := Vector3(2.2, 0.55, 0.35)
 
@@ -32,6 +35,7 @@ var orbs: Array[Dictionary] = []
 ## Fuel pickups, sorted by distance: {s, lane, node, done}.
 var fuels: Array[Dictionary] = []
 var road_material := ShaderMaterial.new()
+var gate_material := ShaderMaterial.new()
 var scenery: Scenery
 
 var _pos := PackedVector3Array()
@@ -46,10 +50,9 @@ var _next_row_s := FIRST_ROW
 var _next_fuel_s := FIRST_FUEL
 
 var _side_material := StandardMaterial3D.new()
-var _gate_material := ShaderMaterial.new()
 var _orb_material := ShaderMaterial.new()
 var _gate_mesh := QuadMesh.new()
-var _orb_mesh: ArrayMesh
+var _gem_meshes: Array[ArrayMesh] = []
 
 
 func _ready() -> void:
@@ -58,14 +61,16 @@ func _ready() -> void:
 	road_material.set_shader_parameter("half_width", HALF_WIDTH)
 	_side_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_side_material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_gate_material.shader = GateShader
-	_gate_material.set_shader_parameter("size", GATE_SIZE)
+	gate_material.shader = GateShader
+	gate_material.set_shader_parameter("size", GATE_SIZE)
+	gate_material.render_priority = 1
 	_orb_material.shader = OrbShader
+	_orb_material.next_pass = Scenery.outline_material(1.18, true)
 
 	_gate_mesh.size = GATE_SIZE
-	_gate_mesh.material = _gate_material
-	_orb_material.next_pass = Scenery.outline_material(1.18, true)
-	_orb_mesh = Props.build("gem", 1, _orb_material)
+	_gate_mesh.material = gate_material
+	for slot in Defs.COLORS.size():
+		_gem_meshes.append(Obstacles.gem(slot, _orb_material))
 
 	for noise: FastNoiseLite in [_turn_noise, _hill_noise]:
 		noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
@@ -79,6 +84,10 @@ func set_theme(theme: Dictionary) -> void:
 	for key: String in theme.road:
 		road_material.set_shader_parameter(key, theme.road[key])
 	_side_material.albedo_color = theme.get("side_color", Color.GRAY)
+
+
+func set_symbols_visible(show: bool) -> void:
+	gate_material.set_shader_parameter("show_symbols", 1.0 if show else 0.0)
 
 
 ## Clears the track and starts a fresh layout from the given seed.
@@ -141,21 +150,31 @@ func point(s: float, lateral: float, height: float) -> Vector3:
 	return frame.origin + frame.basis.x * lateral + frame.basis.y * height
 
 
-## A gate the player matched: burst and fade it out.
+## The first unresolved row at or after distance `s` (empty if none is built yet).
+func next_row(s: float) -> Dictionary:
+	for row in rows:
+		if not row.done and row.s >= s:
+			return row
+	return {}
+
+
+## A gate the player matched: flash, ripple outwards and dissolve.
 func pass_cell(row: Dictionary, lane: int) -> void:
 	var mi: MeshInstance3D = row.meshes[lane]
 	if mi == null:
 		return
-	var tween := mi.create_tween().set_parallel()
-	tween.tween_property(mi, "scale", Vector3(1.4, 1.3, 1.0), 0.3)
-	tween.tween_method(func(v: float) -> void: mi.set_instance_shader_parameter("flash", v), 1.0, 0.0, 0.3)
-	tween.tween_method(func(v: float) -> void: mi.set_instance_shader_parameter("fade", v), 1.0, 0.0, 0.3)
+	var tween := mi.create_tween()
+	tween.tween_method(func(v: float) -> void: mi.set_instance_shader_parameter("burst", v), 0.001, 1.0, 0.45)
+	tween.tween_callback(mi.hide)
 
 
-## Any obstacle destroyed by Prism mode: squash it flat.
+## Any obstacle destroyed by Prism mode: gates burst, solid things squash flat.
 func smash_cell(row: Dictionary, lane: int) -> void:
 	var mi: MeshInstance3D = row.meshes[lane]
 	if mi == null:
+		return
+	if row.cells[lane] <= 2:
+		pass_cell(row, lane)
 		return
 	var tween := mi.create_tween()
 	tween.tween_property(mi, "scale", Vector3(1.6, 0.05, 1.6), 0.15)
@@ -164,10 +183,9 @@ func smash_cell(row: Dictionary, lane: int) -> void:
 
 func collect_fuel(fuel: Dictionary) -> void:
 	var node: Node3D = fuel.node
-	var tween := node.create_tween().set_parallel()
+	var tween := node.create_tween()
 	tween.tween_property(node, "scale", Vector3(1.8, 0.01, 1.8), 0.15)
-	tween.tween_property(node, "position", node.position + node.basis.y * 1.2, 0.15)
-	tween.chain().tween_callback(node.queue_free)
+	tween.tween_callback(node.queue_free)
 
 
 func collect_orb(orb: Dictionary) -> void:
@@ -195,7 +213,7 @@ func _add_sample() -> void:
 	var right := Vector3(cos(_yaw), 0.0, -sin(_yaw))
 	var up := right.cross(fwd)
 	var basis := Basis(right, up, -fwd).rotated(fwd, -turn * BANK)
-	_pos.append(Vector3.ZERO if i == 0 else _pos[i - 1] + fwd * STEP)
+	_pos.append(Vector3.ZERO if _pos.is_empty() else _pos[_pos.size() - 1] + fwd * STEP)
 	_rot.append(basis.get_rotation_quaternion())
 
 
@@ -264,6 +282,10 @@ func _spawn_row() -> void:
 	var meshes: Array = []
 	for lane in Defs.LANES:
 		meshes.append(_make_cell(node, cells[lane], Defs.lane_x(lane)))
+	if cells.any(func(cell: int) -> bool: return cell >= 0 and cell <= 2):
+		var arch := MeshInstance3D.new()
+		arch.mesh = scenery.arch_mesh
+		node.add_child(arch)
 	rows.append({"s": s, "cells": cells, "node": node, "meshes": meshes, "done": false})
 
 	var orb_lane := -1
@@ -288,9 +310,10 @@ func _make_cell(parent: Node3D, cell: int, x: float) -> MeshInstance3D:
 		mi.position = Vector3(x, 0.0, 0.0)
 	else:
 		mi.mesh = _gate_mesh
-		mi.position = Vector3(x, GATE_SIZE.y * 0.5, 0.0)
+		mi.position = Vector3(x, GATE_BOTTOM + GATE_SIZE.y * 0.5, 0.0)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mi.set_instance_shader_parameter("color", Defs.colors[cell])
+		mi.set_instance_shader_parameter("color", Defs.COLORS[cell])
+		mi.set_instance_shader_parameter("symbol", float(Defs.SYMBOLS[cell]))
 	return mi
 
 
@@ -391,11 +414,11 @@ func _spawn_orbs(from: float, to: float) -> int:
 	var s := from
 	while s <= to:
 		var mi := MeshInstance3D.new()
-		mi.mesh = _orb_mesh
+		mi.mesh = _gem_meshes[color]
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mi)
-		mi.position = point(s, Defs.lane_x(lane), 0.75)
-		mi.set_instance_shader_parameter("color", Defs.colors[color])
+		mi.position = point(s, Defs.lane_x(lane), 0.8)
+		mi.set_instance_shader_parameter("color", Defs.COLORS[color])
 		orbs.append({"s": s, "lane": lane, "color": color, "node": mi, "done": false})
 		s += 3.5
 	return lane

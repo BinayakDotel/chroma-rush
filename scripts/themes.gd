@@ -6,19 +6,36 @@ class_name Themes
 ## colour), big calm shapes, and a soft horizon that the fog colour matches exactly. The world
 ## floats above a faceted sea (water, ice, sand haze or lava) drawn by the sky shader.
 ##
-## Each theme has its own three gate colours, picked for contrast against its sky, ground,
-## path, obstacles, fuel and the dark vehicle bodies (checked with CIEDE2000 colour difference).
+## Gate colours are shared by every world (Defs.COLORS); each world's sky, ground and path were
+## tuned so those colours keep a CIEDE2000 difference of 12+ against them.
+##
+## Keys used by the game besides the look: `id` (save key and price, see Economy), `character`
+## and `tagline` (world picker), `arch` (gate arch style), `trail` (particles behind the vehicle).
 
 
 static func all() -> Array[Dictionary]:
 	return [meadow(), glacier(), canyon(), volcano(), space()]
 
 
+## Index of the world with this id in all(), or 0 if unknown.
+static func index_of(world_id: String) -> int:
+	var worlds := all()
+	for i in worlds.size():
+		if worlds[i].id == world_id:
+			return i
+	return 0
+
+
 ## Green and earth-brown with pale stone; accent: turquoise sea. (Camping-diorama references.)
 static func meadow() -> Dictionary:
 	var horizon := Color(0.8, 0.9, 0.95)
 	return {
+		"id": "meadow",
 		"name": "MEADOW",
+		"character": "Fox in a go-kart",
+		"tagline": "Rolling hills, pine forests and a turquoise sea.",
+		"arch": "wood",
+		"trail": {"color": Color(0.62, 0.5, 0.34, 0.8), "size": 0.16, "gravity": -4.0, "glow": false},
 		"player": "kart",
 		"fuel": "jerrycan",
 		"sky": {
@@ -31,7 +48,6 @@ static func meadow() -> Dictionary:
 		"light_color": Color(1.0, 0.93, 0.8), "light_energy": 1.4,
 		"ambient_sky": false, "ambient_color": Color(0.7, 0.76, 0.92), "ambient_energy": 0.45,
 		"fog_color": horizon, "fog_begin": 160.0, "fog_end": 700.0, "fog_curve": 1.6,
-		"gates": [Color(0.9, 0.12, 0.18), Color(0.95, 0.55, 0.05), Color(0.5, 0.18, 0.85)],
 		"fuel_color": Color(0.3, 0.9, 0.35),
 		"road": {
 			"base_color": Color(0.96, 0.9, 0.74), "edge_color": Color(0.6, 0.42, 0.24),
@@ -55,7 +71,12 @@ static func meadow() -> Dictionary:
 ## White and ice blue under an aurora; accent: warm sunlit peaks.
 static func glacier() -> Dictionary:
 	return {
+		"id": "glacier",
 		"name": "GLACIER",
+		"character": "Penguin on a bobsled",
+		"tagline": "Ice spires under a shimmering aurora.",
+		"arch": "ice",
+		"trail": {"color": Color(0.95, 0.98, 1.0, 0.9), "size": 0.14, "gravity": -3.0, "glow": false},
 		"player": "sled",
 		"fuel": "fish",
 		"sky": {
@@ -69,7 +90,6 @@ static func glacier() -> Dictionary:
 		"light_color": Color(1.0, 0.92, 0.88), "light_energy": 1.3,
 		"ambient_sky": true, "ambient_color": Color.WHITE, "ambient_energy": 0.55,
 		"fog_color": Color(0.42, 0.52, 0.95), "fog_begin": 140.0, "fog_end": 600.0, "fog_curve": 1.5,
-		"gates": [Color(0.9, 0.12, 0.18), Color(1.0, 0.78, 0.05), Color(0.1, 0.65, 0.25)],
 		"fuel_color": Color(0.2, 0.9, 1.0),
 		"road": {
 			"base_color": Color(0.8, 0.92, 1.0), "edge_color": Color(0.35, 0.6, 0.9),
@@ -92,7 +112,12 @@ static func glacier() -> Dictionary:
 static func canyon() -> Dictionary:
 	var horizon := Color(1.0, 0.87, 0.64)
 	return {
+		"id": "canyon",
 		"name": "CANYON",
+		"character": "Gecko in a dune buggy",
+		"tagline": "Sun-baked mesas, cacti and hot-air balloons.",
+		"arch": "sandstone",
+		"trail": {"color": Color(0.93, 0.7, 0.45, 0.8), "size": 0.2, "gravity": -3.0, "glow": false},
 		"player": "buggy",
 		"fuel": "jerrycan",
 		"sky": {
@@ -105,7 +130,6 @@ static func canyon() -> Dictionary:
 		"light_color": Color(1.0, 0.9, 0.72), "light_energy": 1.35,
 		"ambient_sky": false, "ambient_color": Color(0.8, 0.6, 0.5), "ambient_energy": 0.45,
 		"fog_color": horizon, "fog_begin": 180.0, "fog_end": 640.0, "fog_curve": 1.5,
-		"gates": [Color(0.0, 0.6, 0.6), Color(0.88, 0.12, 0.62), Color(0.2, 0.3, 0.85)],
 		"fuel_color": Color(0.3, 0.9, 0.35),
 		"road": {
 			"base_color": Color(1.0, 0.95, 0.86), "edge_color": Color(0.64, 0.36, 0.22),
@@ -124,11 +148,17 @@ static func canyon() -> Dictionary:
 	}
 
 
-## Slate-purple rock under a crimson dusk; accent: orange lava (and a lava sea below).
+## Slate-purple rock under a violet dusk; accent: orange lava (and a lava sea below).
 static func volcano() -> Dictionary:
-	var horizon := Color(0.82, 0.3, 0.36)
+	# A dusky purple horizon (not crimson) keeps the red gates readable against the sky.
+	var horizon := Color(0.46, 0.24, 0.46)
 	return {
+		"id": "volcano",
 		"name": "VOLCANO",
+		"character": "Rock golem in a monster truck",
+		"tagline": "Basalt cliffs above a sea of lava.",
+		"arch": "basalt",
+		"trail": {"color": Color(1.0, 0.55, 0.15, 1.0), "size": 0.09, "gravity": 3.0, "glow": true},
 		"player": "monster",
 		"fuel": "jerrycan",
 		"sky": {
@@ -142,7 +172,6 @@ static func volcano() -> Dictionary:
 		"light_color": Color(1.0, 0.76, 0.6), "light_energy": 1.3,
 		"ambient_sky": false, "ambient_color": Color(0.58, 0.44, 0.72), "ambient_energy": 0.45,
 		"fog_color": horizon, "fog_begin": 130.0, "fog_end": 600.0, "fog_curve": 1.5,
-		"gates": [Color(0.45, 0.85, 0.1), Color(0.0, 0.75, 0.95), Color(1.0, 0.78, 0.05)],
 		"fuel_color": Color(0.95, 0.95, 1.0),
 		"road": {
 			"base_color": Color(0.88, 0.85, 0.88), "edge_color": Color(0.22, 0.18, 0.26),
@@ -154,6 +183,8 @@ static func volcano() -> Dictionary:
 			"cliff": [Color(0.24, 0.2, 0.28), Color(0.3, 0.24, 0.32), Color(0.2, 0.17, 0.24), Color(0.95, 0.4, 0.1)],
 		},
 		"block": "lava_boulder", "hurdle": "lava_pool",
+		"hazard": {"cool": Color(0.85, 0.16, 0.02), "hot": Color(1.0, 0.82, 0.28), "brightness": 1.8,
+			"flow_speed": 0.5, "scale": 2.5, "pulse": 0.0},
 		"near": [["obsidian", 2.5], ["dead_tree", 2.0], ["lava_rock", 2.5]],
 		"near_count": 7,
 		"far": [["volcano", 2.0], ["basalt_spire", 1.5], ["magma_rock", 1.2]],
@@ -164,7 +195,12 @@ static func volcano() -> Dictionary:
 ## Navy and teal with pastel planets; accent: the silver road. (Monument Valley reference.)
 static func space() -> Dictionary:
 	return {
+		"id": "space",
 		"name": "SOLAR SYSTEM",
+		"character": "Alien astronaut in a star racer",
+		"tagline": "Race between planets and asteroid fields.",
+		"arch": "tech",
+		"trail": {"color": Color(0.45, 0.85, 1.0, 1.0), "size": 0.08, "gravity": 0.0, "glow": true},
 		"player": "rocket",
 		"fuel": "energy_cell",
 		"sky": {
@@ -178,7 +214,6 @@ static func space() -> Dictionary:
 		"light_color": Color(1.0, 0.95, 0.88), "light_energy": 1.6,
 		"ambient_sky": false, "ambient_color": Color(0.42, 0.52, 0.78), "ambient_energy": 0.65,
 		"fog_color": Color(0.08, 0.16, 0.26), "fog_begin": 220.0, "fog_end": 950.0, "fog_curve": 1.5,
-		"gates": [Color(0.9, 0.12, 0.18), Color(1.0, 0.78, 0.05), Color(0.1, 0.65, 0.25)],
 		"fuel_color": Color(0.2, 0.9, 1.0),
 		"road": {
 			"base_color": Color(0.88, 0.9, 0.95), "edge_color": Color(0.2, 0.4, 0.55),
@@ -187,6 +222,8 @@ static func space() -> Dictionary:
 		"verge": null,
 		"side_color": Color(0.14, 0.22, 0.34),
 		"block": "meteoroid", "hurdle": "laser",
+		"hazard": {"cool": Color(1.0, 0.12, 0.3), "hot": Color(1.0, 0.75, 0.85), "brightness": 2.2,
+			"flow_speed": 2.0, "scale": 6.0, "pulse": 1.0},
 		"near": [],
 		"near_count": 0,
 		"far": [["asteroid", 6.0], ["planet", 0.35], ["ringed_planet", 0.3]],

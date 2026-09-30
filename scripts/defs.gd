@@ -4,13 +4,20 @@ class_name Defs
 const LANES := 3
 const LANE_WIDTH := 2.4
 
-# Obstacle cell types. 0..2 are colour gates matching Defs.colors.
+# Obstacle cell types. 0..2 are colour gates matching Defs.COLORS.
 const EMPTY := -1
 const SOLID := 3
 const LOW := 4
 
-## The three gate colours for the current theme (set from Themes when a theme is applied).
-static var colors: Array[Color] = [Color(0.9, 0.12, 0.18), Color(0.0, 0.6, 0.6), Color(0.5, 0.18, 0.85)]
+## The three gate colours, the same in every world so players learn them once: red, yellow and
+## deep blue. Chosen for separation for all viewers: minimum CIEDE2000 difference of 44 with
+## normal vision and 26+ under simulated protanopia, deuteranopia and tritanopia, and at least
+## 12 against every world's road, sky and ground. Each colour also has its own shape.
+const COLORS: Array[Color] = [Color(0.9, 0.12, 0.2), Color(1.0, 0.84, 0.1), Color(0.1, 0.3, 0.9)]
+const COLOR_NAMES: Array[String] = ["RED", "YELLOW", "BLUE"]
+## Shape per colour slot, drawn on gates, orbs and the colour buttons.
+enum Symbol { CIRCLE, TRIANGLE, SQUARE }
+const SYMBOLS: Array[int] = [Symbol.CIRCLE, Symbol.TRIANGLE, Symbol.SQUARE]
 
 const BASE_SPEED := 16.0
 const MAX_SPEED := 44.0
@@ -27,3 +34,8 @@ static func speed_at(distance: float) -> float:
 
 static func difficulty(distance: float) -> float:
 	return clampf(distance / 2500.0, 0.0, 1.0)
+
+
+## Dark variant of a gate colour for outlines and pressed states.
+static func shade(index: int, amount := 0.45) -> Color:
+	return COLORS[index].darkened(amount)

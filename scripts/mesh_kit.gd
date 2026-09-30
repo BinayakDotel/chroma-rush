@@ -142,6 +142,58 @@ func box(center: Vector3, size: Vector3, color, jitter := 0.0) -> void:
 		quad(c[f[0]], c[f[1]], c[f[2]], c[f[3]], _color(color, (mid - center).normalized()), mid - center)
 
 
+## Side profile extruded across X: `profile` is a star-shaped outline of (z, y) points, swept
+## from x = x0 to x = x1 and capped at both ends. Handy for car bodies, hulls and hats.
+func extrude(profile: Array[Vector2], x0: float, x1: float, color) -> void:
+	var n := profile.size()
+	var centroid := Vector2.ZERO
+	for p in profile:
+		centroid += p
+	centroid /= n
+	var mid_x := (x0 + x1) * 0.5
+	var center := Vector3(mid_x, centroid.y, centroid.x)
+	for i in n:
+		var a := profile[i]
+		var b := profile[(i + 1) % n]
+		var pa0 := Vector3(x0, a.y, a.x)
+		var pb0 := Vector3(x0, b.y, b.x)
+		var pa1 := Vector3(x1, a.y, a.x)
+		var pb1 := Vector3(x1, b.y, b.x)
+		var side_mid := (pa0 + pb1) * 0.5
+		var out := Vector3(0.0, side_mid.y - center.y, side_mid.z - center.z)
+		quad(pa0, pb0, pb1, pa1, _color(color, out.normalized()), out)
+		var c0 := Vector3(x0, centroid.y, centroid.x)
+		var c1 := Vector3(x1, centroid.y, centroid.x)
+		tri(c0, pa0, pb0, _color(color, Vector3.LEFT), Vector3.LEFT)
+		tri(c1, pa1, pb1, _color(color, Vector3.RIGHT), Vector3.RIGHT)
+
+
+## Flat plate: a planar convex polygon given by `points`, thickened by `thickness` along its
+## normal. Used for wings, fins and signs.
+func slab(points: Array, thickness: float, color) -> void:
+	var pts: Array[Vector3] = []
+	pts.assign(points)
+	var n := pts.size()
+	var normal := (pts[1] - pts[0]).cross(pts[2] - pts[0]).normalized()
+	var half := normal * thickness * 0.5
+	var center := Vector3.ZERO
+	for p in pts:
+		center += p
+	center /= n
+	for i in n:
+		var a := pts[i]
+		var b := pts[(i + 1) % n]
+		tri(center + half, a + half, b + half, _color(color, normal), normal)
+		tri(center - half, a - half, b - half, _color(color, -normal), -normal)
+		var out := (a + b) * 0.5 - center
+		quad(a - half, b - half, b + half, a + half, _color(color, out.normalized()), out)
+
+
+## Straight round bar from `a` to `b`.
+func tube(a: Vector3, b: Vector3, radius: float, color, sides := 6) -> void:
+	cylinder(a, b - a, radius, radius, sides, color, true)
+
+
 ## Flat double-sided annulus in the plane perpendicular to `normal`.
 func ring(center: Vector3, normal: Vector3, r_in: float, r_out: float, segments: int, colors: Array) -> void:
 	var up := normal.normalized()

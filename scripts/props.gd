@@ -1,6 +1,7 @@
 class_name Props
 extends RefCounted
-## Procedural low-poly models: scenery props, obstacles and the player vehicles.
+## Procedural low-poly models: scenery props, landmarks and fuel pickups.
+## Obstacles live in Obstacles, the player vehicles in Vehicles.
 
 const BARK := Color(0.45, 0.3, 0.2)
 const SNOW := Color(0.95, 0.97, 1.0)
@@ -20,14 +21,8 @@ const PINE := Color(0.16, 0.48, 0.24)
 const TRUNK := Color(0.36, 0.22, 0.14)
 const BASALT := Color(0.22, 0.19, 0.27)
 const LAVA := Color(1.0, 0.45, 0.08)
-const TIRE := Color(0.14, 0.14, 0.17)
-const HUB := Color(0.85, 0.85, 0.9)
 const DARK := Color(0.12, 0.12, 0.16)
 const CREAM := Color(0.96, 0.92, 0.82)
-const VISOR := Color(0.12, 0.16, 0.28)
-## Dark body colour for vehicles, so they stand out against the light paths.
-const BODY := Color(0.17, 0.18, 0.26)
-const SUIT := Color(0.3, 0.32, 0.42)
 
 
 ## `tint` colours theme-dependent parts (the fuel pickups).
@@ -69,8 +64,6 @@ static func build(kind: String, seed_value: int, material: Material, tint := Col
 		"basalt_spire":
 			k.mountain(Vector3.ZERO, 9.0, 60.0, 6, [
 				[0.3, BASALT], [0.55, Color(0.28, 0.22, 0.24)], [0.8, Color(0.18, 0.15, 0.17)], [2.0, Color(0.4, 0.2, 0.16)]])
-		"gem":
-			k.sphere(Vector3.ZERO, Vector3(0.3, 0.4, 0.3), 0, 0.0, Color.WHITE)
 		"bush":
 			_bush(k, LEAVES[seed_value % LEAVES.size()], true)
 		"dry_bush":
@@ -129,106 +122,6 @@ static func build(kind: String, seed_value: int, material: Material, tint := Col
 		"fuel_beam":
 			k.cylinder(Vector3.ZERO, Vector3.UP * 4.0, 0.75, 0.45, 10, Color.WHITE)
 	return k.commit(material)
-
-
-## Themed lane obstacle standing on the origin, about 2.1 m wide. Blocks are taller than any
-## jump; hurdles are about 0.55 m high. Glowing parts use `glow`.
-static func obstacle(kind: String, seed_value: int, material: Material, glow: Material) -> ArrayMesh:
-	var k := MeshKit.new(seed_value)
-	var g := MeshKit.new(seed_value + 1)
-	match kind:
-		"mossy_boulder":
-			var stone := Color(0.36, 0.33, 0.31)
-			var moss := func(d: Vector3) -> Color: return k.vary(Color(0.26, 0.56, 0.1) if d.y > 0.55 else stone, 0.08)
-			k.sphere(Vector3(0, 1.0, 0), Vector3(1.1, 1.05, 0.75), 1, 0.2, moss, k.rand(0, 50))
-			k.sphere(Vector3(k.rand(-0.3, 0.3), 1.95, 0), Vector3(0.7, 0.6, 0.55), 1, 0.25, moss, k.rand(0, 50))
-		"ice_cube":
-			var ice := func(d: Vector3) -> Color: return k.vary(Color(0.55, 0.85, 1.0) if d.y > 0.7 else Color(0.1, 0.34, 0.82), 0.07)
-			k.box(Vector3(0, 0.75, 0), Vector3(2.0, 1.5, 1.2), ice, 0.06)
-			k.box(Vector3(k.rand(-0.35, 0.35), 1.95, 0), Vector3(1.2, 0.9, 0.95), ice, 0.06)
-		"saguaro":
-			var green := Color(0.14, 0.44, 0.2)
-			k.cylinder(Vector3.ZERO, Vector3.UP * 2.7, 0.6, 0.52, 8, green)
-			k.sphere(Vector3(0, 2.7, 0), Vector3.ONE * 0.52, 1, 0.0, green)
-			for side in [-1.0, 1.0]:
-				var y := k.rand(0.8, 1.2)
-				k.cylinder(Vector3(0, y, 0), Vector3(side * 0.8, 0, 0), 0.36, 0.36, 7, green)
-				k.cylinder(Vector3(side * 0.75, y - 0.15, 0), Vector3.UP * k.rand(1.0, 1.4), 0.36, 0.32, 7, green)
-				k.sphere(Vector3(side * 0.75, y + 1.1, 0), Vector3.ONE * 0.33, 0, 0.0, green)
-			k.sphere(Vector3(0, 3.1, 0), Vector3.ONE * 0.14, 0, 0.0, Color(1.0, 0.4, 0.6))
-			for i in 3:
-				k.sphere(Vector3(k.rand(-0.9, 0.9), 0.15, k.rand(-0.4, 0.4)), Vector3(0.35, 0.25, 0.3), 1, 0.3, Color(0.7, 0.4, 0.26))
-		"lava_boulder":
-			var cracked := func(d: Vector3) -> Color: return LAVA if MeshKit._hash(d, 4.0) > 0.78 else k.vary(BASALT, 0.1)
-			k.sphere(Vector3(0, 1.15, 0), Vector3(1.1, 1.2, 0.75), 1, 0.22, cracked, k.rand(0, 50))
-		"meteoroid":
-			var hot := func(d: Vector3) -> Color:
-				return Color(1.0, 0.5, 0.15) if MeshKit._hash(d, 7.0) > 0.85 else k.vary(Color(0.4, 0.36, 0.38), 0.12)
-			k.sphere(Vector3(0, 1.2, 0), Vector3(1.1, 1.1, 0.8), 1, 0.3, hot, k.rand(0, 50))
-		"log", "snowy_log":
-			k.cylinder(Vector3(-1.1, 0.27, 0), Vector3(2.2, 0, 0), 0.27, 0.27, 7, Color(0.5, 0.31, 0.17), true, 0.04, Color(0.9, 0.72, 0.48))
-			if kind == "snowy_log":
-				k.box(Vector3(0, 0.52, 0), Vector3(2.1, 0.1, 0.34), Props.SNOW, 0.02)
-		"ranch_fence":
-			var wood := Color(0.42, 0.24, 0.12)
-			for x in [-1.0, 0.0, 1.0]:
-				k.cylinder(Vector3(x, 0, 0), Vector3.UP * 0.66, 0.11, 0.1, 5, wood, true)
-			for h in [0.22, 0.48]:
-				k.box(Vector3(0, h, 0), Vector3(2.2, 0.16, 0.1), wood.lightened(0.08), 0.01)
-		"lava_pool":
-			for i in 7:
-				var x := -1.0 + i / 3.0
-				k.sphere(Vector3(x, 0.08, k.rand(-0.5, 0.5) * 0.3 + (0.45 if i % 2 == 0 else -0.45)), Vector3(0.28, 0.2, 0.25), 0, 0.2, BASALT)
-			g.box(Vector3(0, 0.04, 0), Vector3(2.1, 0.08, 0.8), Color(1.0, 0.45, 0.08), 0.0)
-			g.box(Vector3(0, 0.06, 0), Vector3(1.6, 0.08, 0.45), Color(1.0, 0.8, 0.2), 0.0)
-		"laser":
-			for x in [-1.05, 1.05]:
-				k.box(Vector3(x, 0.4, 0), Vector3(0.16, 0.8, 0.16), Color(0.25, 0.26, 0.34))
-				k.box(Vector3(x, 0.82, 0), Vector3(0.2, 0.06, 0.2), Color(1.0, 0.3, 0.3))
-			for h in [0.25, 0.5]:
-				g.cylinder(Vector3(-1.0, h, 0), Vector3(2.0, 0, 0), 0.05, 0.05, 6, Color(1.0, 0.2, 0.2))
-	return g.commit(glow, k.commit(material))
-
-
-## Player vehicle for a theme. Painted parts take `paint`'s colour; returns a Node3D with
-## metadata "wheels" (Array of spinning nodes) and "flame" (engine flame node or null).
-static func build_player(kind: String, paint: Material, detail: Material, flame_material: Material) -> Node3D:
-	var root := Node3D.new()
-	var p := MeshKit.new(11)
-	var d := MeshKit.new(12)
-	var wheels: Array[Node3D] = []
-	var flame: Node3D = null
-	match kind:
-		"kart":
-			_kart(p, d)
-			wheels = _add_wheels(root, detail, 0.22, 0.18, [Vector3(-0.5, -0.38, -0.5), Vector3(0.5, -0.38, -0.5)])
-			wheels.append_array(_add_wheels(root, detail, 0.26, 0.22, [Vector3(-0.52, -0.34, 0.5), Vector3(0.52, -0.34, 0.5)]))
-		"buggy":
-			_buggy(p, d)
-			wheels = _add_wheels(root, detail, 0.3, 0.24, [
-				Vector3(-0.56, -0.3, -0.52), Vector3(0.56, -0.3, -0.52), Vector3(-0.56, -0.3, 0.52), Vector3(0.56, -0.3, 0.52)])
-		"monster":
-			_buggy(p, d, 0.2)
-			wheels = _add_wheels(root, detail, 0.42, 0.32, [
-				Vector3(-0.62, -0.18, -0.55), Vector3(0.62, -0.18, -0.55), Vector3(-0.62, -0.18, 0.55), Vector3(0.62, -0.18, 0.55)])
-		"sled":
-			_sled_penguin(p, d)
-		"rocket":
-			_rocket(p, d)
-			var f := MeshKit.new(13)
-			f.cylinder(Vector3(0, 0, 0.72), Vector3(0, 0, 0.75), 0.2, 0.0, 7, Color(1.0, 0.55, 0.15))
-			f.cylinder(Vector3(0, 0, 0.72), Vector3(0, 0, 0.4), 0.12, 0.0, 7, Color(1.0, 0.95, 0.5))
-			var mi := MeshInstance3D.new()
-			mi.mesh = f.commit(flame_material)
-			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			root.add_child(mi)
-			flame = mi
-	var body := MeshInstance3D.new()
-	body.mesh = d.commit(detail, p.commit(paint))
-	root.add_child(body)
-	root.set_meta("wheels", wheels)
-	root.set_meta("flame", flame)
-	return root
 
 
 # --- scenery ---------------------------------------------------------------
@@ -503,97 +396,3 @@ static func _energy_cell(k: MeshKit, glow: Color) -> void:
 	k.cylinder(Vector3(0, -0.24, 0), Vector3.UP * 0.48, 0.2, 0.2, 8, glow, false)
 	k.cylinder(Vector3(0, 0.24, 0), Vector3.UP * 0.14, 0.24, 0.24, 8, metal, true)
 	k.cylinder(Vector3(0, 0.38, 0), Vector3.UP * 0.1, 0.08, 0.08, 6, metal, true)
-
-
-# --- player vehicles -------------------------------------------------------
-
-static func _add_wheels(root: Node3D, material: Material, radius: float, width: float, positions: Array) -> Array[Node3D]:
-	var k := MeshKit.new(21)
-	k.cylinder(Vector3(-width * 0.5, 0, 0), Vector3(width, 0, 0), radius, radius, 9, TIRE, true, 0.0, HUB)
-	var mesh := k.commit(material)
-	var wheels: Array[Node3D] = []
-	for pos: Vector3 in positions:
-		var mi := MeshInstance3D.new()
-		mi.mesh = mesh
-		mi.position = pos
-		root.add_child(mi)
-		wheels.append(mi)
-	return wheels
-
-
-static func _driver(p: MeshKit, d: MeshKit, at: Vector3) -> void:
-	d.box(at + Vector3(0, -0.05, 0), Vector3(0.38, 0.32, 0.28), SUIT)
-	p.sphere(at + Vector3(0, 0.3, 0), Vector3.ONE * 0.24, 1, 0.0, Color.WHITE)
-	d.sphere(at + Vector3(0, 0.31, -0.11), Vector3(0.19, 0.1, 0.15), 1, 0.0, VISOR)
-
-
-static func _kart(p: MeshKit, d: MeshKit) -> void:
-	d.box(Vector3(0, -0.3, 0), Vector3(0.8, 0.22, 1.45), BODY)
-	p.box(Vector3(0, -0.27, -0.82), Vector3(0.6, 0.18, 0.34), Color.WHITE)
-	for x in [-0.42, 0.42]:
-		p.box(Vector3(x, -0.3, 0.05), Vector3(0.06, 0.14, 1.2), Color.WHITE)
-	d.box(Vector3(0, -0.33, -1.0), Vector3(0.95, 0.1, 0.1), DARK)
-	d.box(Vector3(0, -0.15, 0.25), Vector3(0.55, 0.08, 0.35), SUIT)
-	d.box(Vector3(0, 0.02, 0.42), Vector3(0.55, 0.38, 0.1), SUIT)
-	d.cylinder(Vector3(0, -0.2, -0.4), Vector3(0, 0.28, 0.1), 0.03, 0.03, 4, DARK)
-	d.cylinder(Vector3(0, 0.08, -0.33), Vector3(0, 0.04, 0.015), 0.13, 0.13, 8, DARK, true)
-	_driver(p, d, Vector3(0, 0.12, 0.12))
-	p.box(Vector3(0, 0.12, 0.8), Vector3(0.95, 0.08, 0.26), Color.WHITE)
-	for x in [-0.3, 0.3]:
-		d.box(Vector3(x, -0.08, 0.78), Vector3(0.05, 0.36, 0.08), DARK)
-
-
-## Dune buggy; `lift` raises the body for the monster truck.
-static func _buggy(p: MeshKit, d: MeshKit, lift := 0.0) -> void:
-	var o := Vector3(0, lift, 0)
-	d.box(o + Vector3(0, -0.18, 0), Vector3(0.82, 0.26, 1.3), BODY)
-	p.box(o + Vector3(0, -0.1, -0.72), Vector3(0.74, 0.2, 0.34), Color.WHITE)
-	for x in [-0.43, 0.43]:
-		p.box(o + Vector3(x, -0.18, 0.05), Vector3(0.06, 0.18, 1.0), Color.WHITE)
-	d.box(o + Vector3(0, -0.02, 0.2), Vector3(0.55, 0.1, 0.4), SUIT)
-	_driver(p, d, o + Vector3(0, 0.2, 0.1))
-	for x in [-0.36, 0.36]:
-		for z in [-0.3, 0.45]:
-			d.cylinder(o + Vector3(x, -0.05, z), Vector3.UP * 0.7, 0.035, 0.035, 4, DARK)
-		d.cylinder(o + Vector3(x, 0.65, -0.3), Vector3(0, 0, 0.75), 0.035, 0.035, 4, DARK)
-	d.cylinder(o + Vector3(-0.36, 0.65, 0.45), Vector3(0.72, 0, 0), 0.035, 0.035, 4, DARK)
-	d.cylinder(o + Vector3(-0.36, 0.65, -0.3), Vector3(0.72, 0, 0), 0.035, 0.035, 4, DARK)
-	for x in [-0.25, 0.25]:
-		d.sphere(o + Vector3(x, -0.08, -0.88), Vector3.ONE * 0.08, 0, 0.0, Color(1.0, 0.95, 0.6))
-	d.cylinder(o + Vector3(-0.12, 0.05, 0.68), Vector3(0.24, 0, 0), 0.24, 0.24, 8, TIRE, true, 0.0, HUB)
-	if lift > 0.0:
-		d.box(o + Vector3(0, -0.36, 0), Vector3(0.3, 0.14, 1.1), DARK)
-
-
-static func _sled_penguin(p: MeshKit, d: MeshKit) -> void:
-	p.box(Vector3(0, -0.5, 0.05), Vector3(0.78, 0.1, 1.35), Color.WHITE)
-	p.box(Vector3(0, -0.4, -0.66), Vector3(0.78, 0.12, 0.18), Color.WHITE)
-	for x in [-0.3, 0.3]:
-		d.box(Vector3(x, -0.58, 0.0), Vector3(0.06, 0.06, 1.55), Color(0.82, 0.86, 0.92))
-	var black := Color(0.13, 0.14, 0.2)
-	d.sphere(Vector3(0, -0.05, 0.1), Vector3(0.32, 0.42, 0.3), 1, 0.0, black)
-	d.sphere(Vector3(0, -0.1, -0.02), Vector3(0.25, 0.33, 0.22), 1, 0.0, SNOW)
-	d.sphere(Vector3(0, 0.42, 0.08), Vector3.ONE * 0.24, 1, 0.0, black)
-	for x in [-0.09, 0.09]:
-		d.sphere(Vector3(x, 0.48, -0.12), Vector3.ONE * 0.06, 0, 0.0, SNOW)
-		d.sphere(Vector3(x, 0.48, -0.17), Vector3.ONE * 0.03, 0, 0.0, DARK)
-	d.cylinder(Vector3(0, 0.4, -0.14), Vector3(0, -0.02, -0.18), 0.07, 0.0, 5, Color(1.0, 0.6, 0.15))
-	for x in [-0.32, 0.32]:
-		d.sphere(Vector3(x, -0.05, 0.1), Vector3(0.08, 0.22, 0.13), 0, 0.0, black)
-		d.sphere(Vector3(x * 0.5, -0.42, -0.2), Vector3(0.1, 0.05, 0.14), 0, 0.0, Color(1.0, 0.6, 0.15))
-	p.cylinder(Vector3(0, 0.16, 0.08), Vector3.UP * 0.11, 0.28, 0.27, 9, Color.WHITE, true)
-	p.box(Vector3(0.12, 0.05, 0.36), Vector3(0.1, 0.26, 0.06), Color.WHITE)
-	p.sphere(Vector3(0, 0.66, 0.08), Vector3(0.2, 0.08, 0.2), 1, 0.0, Color.WHITE)
-	d.sphere(Vector3(0, 0.76, 0.08), Vector3.ONE * 0.07, 0, 0.0, SNOW)
-
-
-static func _rocket(p: MeshKit, d: MeshKit) -> void:
-	d.cylinder(Vector3(0, 0, 0.55), Vector3(0, 0, -1.0), 0.3, 0.3, 8, BODY)
-	p.cylinder(Vector3(0, 0, -0.45), Vector3(0, 0, -0.55), 0.3, 0.0, 8, Color.WHITE)
-	d.sphere(Vector3(0, 0.2, -0.12), Vector3(0.18, 0.15, 0.3), 1, 0.0, Color(0.45, 0.85, 1.0))
-	for x in [-1.0, 1.0]:
-		p.box(Vector3(x * 0.55, -0.08, 0.28), Vector3(0.6, 0.06, 0.5), Color.WHITE, 0.0)
-		d.box(Vector3(x * 0.84, -0.08, 0.3), Vector3(0.06, 0.2, 0.5), BODY)
-	p.box(Vector3(0, 0.32, 0.38), Vector3(0.06, 0.38, 0.38), Color.WHITE)
-	d.cylinder(Vector3(0, 0, 0.55), Vector3(0, 0, 0.2), 0.24, 0.28, 8, DARK, true)
-	p.cylinder(Vector3(0, 0, -0.1), Vector3(0, 0, 0.08), 0.31, 0.31, 8, Color.WHITE)

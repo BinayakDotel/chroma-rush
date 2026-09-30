@@ -305,10 +305,10 @@ func _build_play_ui() -> Control:
 	swatch_row.custom_minimum_size = Vector2(0, 76)
 	swatch_row.add_theme_constant_override("separation", 12)
 	bottom.add_child(swatch_row)
-	for i in Defs.colors.size():
+	for i in Defs.COLORS.size():
 		var swatch := PanelContainer.new()
 		var style := StyleBoxFlat.new()
-		style.bg_color = Defs.colors[i]
+		style.bg_color = Defs.COLORS[i]
 		style.border_color = Color.WHITE
 		style.set_corner_radius_all(14)
 		swatch.add_theme_stylebox_override("panel", style)

@@ -1,8 +1,9 @@
 class_name Racer
 extends Node3D
-## The player's vehicle. The game places this node on the track each frame; the body
-## inside it is offset for lane position and jumps. The vehicle's paint shows the
-## current gate colour.
+## The player's vehicle and driver. The game places this node on the track each frame; the
+## body inside it is offset for lane position and jumps. Painted panels show the current gate
+## colour. Parts listed by Vehicles (wheels, steering, head, floppy bits, flames) are animated
+## here, and a themed trail of particles streams from behind.
 
 signal landed
 
@@ -13,6 +14,8 @@ const GRAVITY := 34.0
 const JUMP_SPEED := 11.0
 const SLAM_SPEED := 24.0
 const AIR_TIME := 2.0 * JUMP_SPEED / GRAVITY
+const WOBBLE_STIFFNESS := 90.0
+const WOBBLE_DAMPING := 9.0
 
 var lane := 1
 var lateral := 0.0
@@ -20,51 +23,92 @@ var height := 0.0
 var color_idx := 0
 ## Cycles through hues while Prism Overdrive is active.
 var rainbow := false
-## Blinks the cube during post-Prism invulnerability.
+## Blinks the vehicle during post-Prism or post-revive invulnerability.
 var ghost := false
 var display_color := Color.WHITE
-## Forward speed in m/s, used to spin the wheels.
+## Forward speed in m/s, used for wheels, flames and the trail.
 var speed := 0.0
 
 var _vy := 0.0
 var _air := 0.0
 var _t := 0.0
+var _last_lateral := 0.0
+var _lateral_velocity := 0.0
 var _body := Node3D.new()
 var _model: Node3D
 var _wheels: Array = []
-var _flame: Node3D
+var _steer: Array = []
+var _flames: Array = []
+var _head: Node3D
+## Per floppy part: {node, rest (Vector3), angle (Vector2), velocity (Vector2)}.
+var _wobblers: Array[Dictionary] = []
 var _hover := HOVER
-var _bob := 0.02
+var _bob := 0.015
+var _trail := GPUParticles3D.new()
+var _trail_process := ParticleProcessMaterial.new()
+var _trail_material := StandardMaterial3D.new()
+var _trail_enabled := true
 var _paint := StandardMaterial3D.new()
 var _detail := StandardMaterial3D.new()
-var _flame_material := StandardMaterial3D.new()
+var _glow := StandardMaterial3D.new()
+var _glass := StandardMaterial3D.new()
 var _debris: Array[Dictionary] = []
 
 
 func _ready() -> void:
 	_paint.vertex_color_use_as_albedo = true
-	_paint.roughness = 0.45
+	_paint.roughness = 0.35
+	_paint.metallic_specular = 0.6
 	_detail.vertex_color_use_as_albedo = true
-	_detail.roughness = 0.7
-	_flame_material.vertex_color_use_as_albedo = true
-	_flame_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_flame_material.albedo_color = Color(1.8, 1.8, 1.8)
+	_detail.roughness = 0.6
+	_glow.vertex_color_use_as_albedo = true
+	_glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_glow.albedo_color = Color(1.4, 1.4, 1.4)
+	_glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_glass.albedo_color = Color(0.8, 0.94, 1.0, 0.22)
+	_glass.roughness = 0.05
+	_glass.metallic_specular = 1.0
+	_glass.rim_enabled = true
+	_glass.rim = 0.8
+	_glass.rim_tint = 0.3
 	add_child(_body)
+	_setup_trail()
 	set_model("kart")
 	reset()
 
 
-## Swaps in the vehicle for a theme ("kart", "buggy", "sled" or "rocket").
+## Swaps in the vehicle for a theme ("kart", "sled", "buggy", "monster" or "rocket").
 func set_model(kind: String) -> void:
 	if _model:
 		_model.queue_free()
-	_model = Props.build_player(kind, _paint, _detail, _flame_material)
+	_model = Vehicles.build(kind, {"paint": _paint, "detail": _detail, "glow": _glow, "glass": _glass})
 	_body.add_child(_model)
 	_wheels = _model.get_meta("wheels")
-	_flame = _model.get_meta("flame") if _model.has_meta("flame") else null
-	var flying := kind == "rocket"
-	_hover = HOVER + (0.15 if flying else 0.0)
-	_bob = 0.06 if flying else 0.015
+	_steer = _model.get_meta("steer")
+	_flames = _model.get_meta("flames")
+	_head = _model.get_meta("head")
+	_wobblers.clear()
+	for node: Node3D in _model.get_meta("wobblers"):
+		_wobblers.append({"node": node, "rest": node.rotation, "angle": Vector2.ZERO, "velocity": Vector2.ZERO})
+	_hover = HOVER + float(_model.get_meta("hover"))
+	_bob = float(_model.get_meta("bob"))
+	_trail.position = _model.get_meta("trail")
+
+
+## Colour, size and drift of the trail particles for a theme (see Themes `trail`).
+func set_trail_style(style: Dictionary) -> void:
+	var color: Color = style.color
+	_trail_process.color = color
+	_trail_process.gravity = Vector3(0, style.gravity, 0)
+	_trail_process.scale_min = style.size * 0.7
+	_trail_process.scale_max = style.size * 1.3
+	_trail_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED if style.glow else BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	_trail_material.albedo_color = Color(1.6, 1.6, 1.6) if style.glow else Color.WHITE
+
+
+func set_trail_enabled(enabled: bool) -> void:
+	_trail_enabled = enabled
+	_trail.emitting = enabled and speed > 1.0
 
 
 func _process(delta: float) -> void:
@@ -72,11 +116,10 @@ func _process(delta: float) -> void:
 
 
 func reset() -> void:
-	for piece in _debris:
-		piece.node.queue_free()
-	_debris.clear()
+	_clear_debris()
 	lane = 1
 	lateral = 0.0
+	_last_lateral = 0.0
 	height = 0.0
 	_vy = 0.0
 	rainbow = false
@@ -86,34 +129,61 @@ func reset() -> void:
 	_body.rotation = Vector3.ZERO
 	set_color(0)
 	_body.scale = Vector3.ONE
+	_trail.restart()
+
+
+## Brings the vehicle back after a crash (second chance), keeping its lane.
+func revive() -> void:
+	_clear_debris()
+	height = 0.0
+	_vy = 0.0
+	_body.visible = true
+	_body.rotation = Vector3.ZERO
+	_body.scale = Vector3(0.2, 0.2, 0.2)
+	_trail.restart()
 
 
 func tick(delta: float) -> void:
 	_t += delta
 	var target := Defs.lane_x(lane)
 	lateral = move_toward(lateral, target, LANE_SPEED * delta)
+	var lateral_velocity := (lateral - _last_lateral) / maxf(delta, 0.0001)
+	var lateral_accel := (lateral_velocity - _lateral_velocity) / maxf(delta, 0.0001)
+	_lateral_velocity = lateral_velocity
+	_last_lateral = lateral
+	var vertical_accel := 0.0
 	if height > 0.0:
 		_vy -= GRAVITY * delta
 		height += _vy * delta
 		_air += delta
+		vertical_accel = -GRAVITY
 		if height <= 0.0:
 			height = 0.0
 			_vy = 0.0
-			_body.scale = Vector3(1.35, 0.6, 1.35)
+			_body.scale = Vector3(1.3, 0.65, 1.3)
+			vertical_accel = 60.0
 			landed.emit()
 
 	var lean := (target - lateral) / Defs.LANE_WIDTH
 	var flip := -TAU * clampf(_air / AIR_TIME, 0.0, 1.0) if height > 0.0 else 0.0
-	var bob_rate := 4.0 if _flame else 30.0
+	var bob_rate := 4.0 if _bob > 0.03 else 30.0 * clampf(speed / 20.0, 0.2, 1.5)
 	_body.position = Vector3(lateral, SIZE * 0.5 + _hover + sin(_t * bob_rate) * _bob + height, 0.0)
-	_body.rotation = Vector3(flip, 0.0, -lean * 0.6)
+	_body.rotation = Vector3(flip, lean * -0.25, -lean * 0.5)
 	_body.scale = _body.scale.lerp(Vector3.ONE, 1.0 - exp(-10.0 * delta))
 	_body.visible = not ghost or fmod(_t * 12.0, 1.0) < 0.6
+
 	for wheel: Node3D in _wheels:
-		wheel.rotation.x -= speed * delta / 0.26
-	if _flame:
-		var power := clampf(speed / 16.0, 0.2, 1.6)
-		_flame.scale = Vector3(1.0, 1.0, power * (1.0 + 0.3 * sin(_t * 47.0) + 0.15 * sin(_t * 31.0)))
+		wheel.rotation.x -= speed * delta / 0.28
+	for pivot: Node3D in _steer:
+		pivot.rotation.y = lerp_angle(pivot.rotation.y, clampf(-lean * 0.9, -0.5, 0.5), 1.0 - exp(-14.0 * delta))
+	if _head:
+		_head.rotation = Vector3(sin(_t * 9.0) * 0.03 * clampf(speed / 20.0, 0.0, 1.0), -lean * 0.45, lean * 0.2)
+	var power := clampf(speed / 16.0, 0.25, 1.6)
+	for flame: Node3D in _flames:
+		flame.scale = Vector3(1.0, 1.0, power * (1.0 + 0.3 * sin(_t * 47.0) + 0.15 * sin(_t * 31.0)))
+	_update_wobblers(delta, lateral_accel, vertical_accel)
+	_trail.emitting = _trail_enabled and speed > 1.0 and height <= 0.05 and _body.visible
+	_trail.amount_ratio = clampf(speed / Defs.MAX_SPEED, 0.2, 1.0)
 	if rainbow:
 		_apply_color(Color.from_hsv(fmod(_t * 1.2, 1.0), 0.6, 1.0))
 
@@ -152,13 +222,14 @@ func slam() -> bool:
 
 func set_color(i: int) -> void:
 	color_idx = i
-	_apply_color(Defs.colors[i])
-	_body.scale = Vector3.ONE * 1.2
+	_apply_color(Defs.COLORS[i])
+	_body.scale = Vector3.ONE * 1.18
 
 
 ## Shatters the vehicle into fragments that bounce on the road.
 func explode() -> void:
 	_body.visible = false
+	_trail.emitting = false
 	var basis := global_transform.basis
 	var origin := _body.global_position
 	var mesh := BoxMesh.new()
@@ -190,6 +261,66 @@ func explode() -> void:
 func _apply_color(c: Color) -> void:
 	display_color = c
 	_paint.albedo_color = c
+
+
+## Spring-driven floppy parts: they swing against lane changes and bounce on jumps and landings.
+func _update_wobblers(delta: float, lateral_accel: float, vertical_accel: float) -> void:
+	var flutter := sin(_t * 18.0) * 0.08 * clampf(speed / Defs.MAX_SPEED, 0.0, 1.0)
+	var drive := Vector2(clampf(vertical_accel * 0.006, -0.5, 0.5) + flutter, clampf(lateral_accel * 0.0025, -0.7, 0.7))
+	for w in _wobblers:
+		var angle: Vector2 = w.angle
+		var velocity: Vector2 = w.velocity
+		var force := (drive - angle) * WOBBLE_STIFFNESS - velocity * WOBBLE_DAMPING
+		velocity += force * delta
+		angle += velocity * delta
+		w.angle = angle
+		w.velocity = velocity
+		var rest: Vector3 = w.rest
+		(w.node as Node3D).rotation = rest + Vector3(angle.x, 0.0, angle.y)
+
+
+func _setup_trail() -> void:
+	var puff := SphereMesh.new()
+	puff.radius = 0.5
+	puff.height = 1.0
+	puff.radial_segments = 6
+	puff.rings = 3
+	_trail_material.vertex_color_use_as_albedo = true
+	_trail_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	puff.material = _trail_material
+	_trail_process.direction = Vector3(0, 0.5, 1)
+	_trail_process.spread = 30.0
+	_trail_process.initial_velocity_min = 1.5
+	_trail_process.initial_velocity_max = 3.5
+	_trail_process.damping_min = 2.0
+	_trail_process.damping_max = 3.0
+	var fade := Gradient.new()
+	fade.set_color(0, Color(1, 1, 1, 1))
+	fade.set_color(1, Color(1, 1, 1, 0))
+	var ramp := GradientTexture1D.new()
+	ramp.gradient = fade
+	_trail_process.color_ramp = ramp
+	var shrink := Curve.new()
+	shrink.add_point(Vector2(0, 1))
+	shrink.add_point(Vector2(1, 0.2))
+	var shrink_tex := CurveTexture.new()
+	shrink_tex.curve = shrink
+	_trail_process.scale_curve = shrink_tex
+	_trail.process_material = _trail_process
+	_trail.draw_pass_1 = puff
+	_trail.amount = 36
+	_trail.lifetime = 0.7
+	_trail.local_coords = false
+	_trail.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_trail.visibility_aabb = AABB(Vector3(-4, -2, -2), Vector3(8, 6, 12))
+	_body.add_child(_trail)
+	set_trail_style({"color": Color(0.8, 0.7, 0.5, 0.8), "size": 0.15, "gravity": -3.0, "glow": false})
+
+
+func _clear_debris() -> void:
+	for piece in _debris:
+		(piece.node as Node).queue_free()
+	_debris.clear()
 
 
 func _update_debris(delta: float) -> void:
