@@ -33,8 +33,7 @@ func _ready() -> void:
 	# Run after the game each frame, so the showcase camera wins.
 	process_priority = 100
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	Profile.use_sandbox()
-	Settings.use_sandbox()
+	# Profile and Settings already switched to the user://dev sandbox at startup (DevMode).
 	if _flag("tutorial-done"):
 		# Behave like a returning player: no how-to and no first-run tips.
 		Profile.mark_tutorial_done()
@@ -60,6 +59,10 @@ func _ready() -> void:
 	if _args.has("screen"):
 		_open_screen(str(_args.screen))
 	if _args.has("flow-test"):
+		# Watchdog: a failing step must never leave the test hanging.
+		get_tree().create_timer(180.0, true, false, true).timeout.connect(func() -> void:
+			print("[flow] TIMED OUT")
+			get_tree().quit(2))
 		await preload("res://scripts/dev/flow_test.gd").new().run(self)
 
 

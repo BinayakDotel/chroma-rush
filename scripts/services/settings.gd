@@ -30,6 +30,8 @@ var _path := PATH
 func _ready() -> void:
 	_ensure_bus(MUSIC_BUS)
 	_ensure_bus(SFX_BUS)
+	if DevMode.active():
+		use_sandbox()
 	_load()
 	_apply_audio()
 
@@ -47,6 +49,8 @@ func set_value(key: StringName, value: Variant) -> void:
 func use_sandbox() -> void:
 	DirAccess.make_dir_recursive_absolute(SANDBOX_PATH.get_base_dir())
 	_path = SANDBOX_PATH
+	if FileAccess.file_exists(SANDBOX_PATH):
+		DirAccess.remove_absolute(SANDBOX_PATH)
 
 
 ## Short vibration on phones, if enabled. `strength` 0..1 scales the duration.
@@ -77,7 +81,7 @@ func _ensure_bus(bus: StringName) -> void:
 
 func _load() -> void:
 	var cfg := ConfigFile.new()
-	if not SaveIO.read(cfg, PATH):
+	if not SaveIO.read(cfg, _path):
 		return
 	for key in KEYS:
 		var fallback: Variant = get(key)

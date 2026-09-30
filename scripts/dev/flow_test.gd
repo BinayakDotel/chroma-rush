@@ -23,6 +23,10 @@ func run(host: Node) -> void:
 	await _frames(3)
 	_check("PLAY on first launch opens How to Play instead of starting", _state() == "MENU" and ui.has_overlay())
 	var howto := ui.top_overlay()
+	if howto == null:
+		_check("how to play overlay exists", false)
+		harness.get_tree().quit(1)
+		return
 	howto.call("_finish")
 	await _frames(3)
 	_check("finishing the tutorial starts the run", _state() == "PLAYING")
