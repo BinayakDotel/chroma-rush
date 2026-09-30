@@ -453,6 +453,7 @@ func _check_rows() -> void:
 			break
 		row.done = true
 		_resolve_row(row)
+		track.retire_row(row)
 		if state != State.PLAYING:
 			return
 

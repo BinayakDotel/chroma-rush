@@ -187,6 +187,24 @@ func pass_cell(row: Dictionary, lane: int) -> void:
 	tween.tween_callback(mi.hide)
 
 
+## The player is past this row: dissolve its arch and any gate panels still standing, so the
+## chase camera (several metres behind and above) never flies through them.
+func retire_row(row: Dictionary) -> void:
+	var arch: MeshInstance3D = row.get("arch")
+	if arch:
+		var tween := arch.create_tween()
+		tween.tween_property(arch, "transparency", 1.0, 0.18)
+		tween.tween_callback(arch.hide)
+	for lane in Defs.LANES:
+		var mi: MeshInstance3D = row.meshes[lane]
+		var cell: int = row.cells[lane]
+		if mi == null or cell < 0 or cell > 2 or float(mi.get_instance_shader_parameter("burst")) > 0.0:
+			continue
+		var fade := mi.create_tween()
+		fade.tween_method(func(v: float) -> void: mi.set_instance_shader_parameter("fade", v), 1.0, 0.0, 0.18)
+		fade.tween_callback(mi.hide)
+
+
 ## Any obstacle destroyed by Prism mode: gates burst, solid things squash flat.
 func smash_cell(row: Dictionary, lane: int) -> void:
 	var mi: MeshInstance3D = row.meshes[lane]
@@ -320,6 +338,7 @@ func _spawn_row() -> void:
 	_ensure_samples(s + gap + 2.0)
 
 	var cells := _pick_pattern(s, d)
+	var arch_of_row: MeshInstance3D = null
 	var node := Node3D.new()
 	add_child(node)
 	node.transform = frame_at(s)
@@ -330,7 +349,8 @@ func _spawn_row() -> void:
 		var arch := MeshInstance3D.new()
 		arch.mesh = scenery.arch_mesh
 		node.add_child(arch)
-	rows.append({"s": s, "cells": cells, "node": node, "meshes": meshes, "done": false})
+		arch_of_row = arch
+	rows.append({"s": s, "cells": cells, "node": node, "meshes": meshes, "arch": arch_of_row, "done": false})
 
 	var orb_lane := -1
 	if _rng.randf() < 0.6:
