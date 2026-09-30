@@ -1,0 +1,65 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/game.gd" id="1_game"]
+[ext_resource type="Script" path="res://scripts/track.gd" id="2_track"]
+[ext_resource type="Script" path="res://scripts/player.gd" id="3_player"]
+[ext_resource type="Script" path="res://scripts/chase_camera.gd" id="4_camera"]
+[ext_resource type="Script" path="res://scripts/hud.gd" id="5_hud"]
+[ext_resource type="Script" path="res://scripts/audio.gd" id="6_audio"]
+[ext_resource type="Shader" path="res://shaders/sky.gdshader" id="7_sky"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
+shader = ExtResource("7_sky")
+
+[sub_resource type="Sky" id="Sky_main"]
+sky_material = SubResource("ShaderMaterial_sky")
+
+[sub_resource type="Environment" id="Environment_main"]
+background_mode = 2
+sky = SubResource("Sky_main")
+ambient_light_source = 3
+ambient_light_energy = 0.55
+tonemap_mode = 2
+ssao_enabled = true
+glow_enabled = true
+glow_intensity = 0.6
+glow_bloom = 0.0
+glow_hdr_threshold = 1.2
+adjustment_enabled = true
+adjustment_contrast = 1.08
+adjustment_saturation = 1.1
+fog_enabled = true
+fog_light_color = Color(1, 0.84, 0.74, 1)
+fog_density = 0.0035
+fog_sky_affect = 0.0
+
+[node name="Game" type="Node3D"]
+script = ExtResource("1_game")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_main")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.6428, 0.766, 0, -0.766, 0.6428, 0, 10, 0)
+light_color = Color(1, 0.93, 0.85, 1)
+light_energy = 0.9
+shadow_enabled = true
+directional_shadow_max_distance = 90.0
+light_angular_distance = 0.6
+
+[node name="Track" type="Node3D" parent="."]
+script = ExtResource("2_track")
+
+[node name="Player" type="Node3D" parent="."]
+script = ExtResource("3_player")
+
+[node name="Camera" type="Camera3D" parent="."]
+fov = 72.0
+far = 1300.0
+script = ExtResource("4_camera")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+script = ExtResource("5_hud")
+
+[node name="Audio" type="Node" parent="."]
+script = ExtResource("6_audio")
