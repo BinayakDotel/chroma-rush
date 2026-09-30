@@ -28,10 +28,14 @@ var _path := PATH
 
 
 func _ready() -> void:
+	if DevMode.active():
+		use_sandbox()
+		return
 	_load()
 
 
-## Developer harness only: switch to a throwaway save so tests never touch real progress.
+## Developer harness only: a throwaway save so tests never touch real progress. Chosen at
+## startup (see DevMode) so nothing reads the real save first.
 func use_sandbox() -> void:
 	DirAccess.make_dir_recursive_absolute(SANDBOX_PATH.get_base_dir())
 	_path = SANDBOX_PATH

@@ -13,6 +13,8 @@ extends Node
 ##   --shot-dir=<path>     where screenshots go (default user://shots)
 ##   --time-scale=<x>      speed the simulation up
 ##   --tutorial-done       skip the first-run how-to (saves go to user://dev, never the real profile)
+##   --hide-ui             hide every screen (clean shots of the 3D scene)
+##   --screen-delay=<s>    seconds of play before --screen=pause|results opens (default 2)
 ##   --flow-test           run the end-to-end flow checks in flow_test.gd and exit
 ##   --screen=<name>       open a screen for screenshots: settings | shop | howto | pause | results
 ##   --showcase=<yaw>      close-up camera orbiting the vehicle at this angle (degrees)
@@ -31,10 +33,11 @@ func _ready() -> void:
 	# Run after the game each frame, so the showcase camera wins.
 	process_priority = 100
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	Profile.use_sandbox()
-	Settings.use_sandbox()
+	# Profile and Settings already switched to the user://dev sandbox at startup (DevMode).
 	if _flag("tutorial-done"):
+		# Behave like a returning player: no how-to and no first-run tips.
 		Profile.mark_tutorial_done()
+		Profile.lifetime_runs = 1
 	game = get_node("Game")
 	for arg in OS.get_cmdline_user_args():
 		var parts := arg.trim_prefix("--").split("=", true, 1)
@@ -51,9 +54,15 @@ func _ready() -> void:
 		game.call("dev_start_run")
 	_baseline = _memory()
 	print("[dev] start ", _baseline)
+	if _args.has("hide-ui"):
+		(game.get("ui") as CanvasLayer).visible = false
 	if _args.has("screen"):
 		_open_screen(str(_args.screen))
 	if _args.has("flow-test"):
+		# Watchdog: a failing step must never leave the test hanging.
+		get_tree().create_timer(180.0, true, false, true).timeout.connect(func() -> void:
+			print("[flow] TIMED OUT")
+			get_tree().quit(2))
 		await preload("res://scripts/dev/flow_test.gd").new().run(self)
 
 
@@ -141,7 +150,9 @@ func _open_screen(screen: String) -> void:
 			ui.open_howto(false)
 		"pause", "results":
 			game.call("dev_start_run")
-			await get_tree().create_timer(2.0).timeout
+			await get_tree().create_timer(float(_args.get("screen-delay", "2"))).timeout
+			# Stop the autopilot so it does not restart the run behind the screen.
+			_args.erase("autoplay")
 			if screen == "pause":
 				ui.pause_requested.emit()
 			else:
@@ -156,6 +167,7 @@ func _showcase(yaw: float) -> void:
 	var offset := frame.basis * (Vector3(sin(yaw), 0.45, -cos(yaw)) * 3.2)
 	cam.global_transform = Transform3D(Basis.IDENTITY, center + offset).looking_at(center, frame.basis.y)
 	cam.fov = 45.0
+	(cam as ChaseCamera).frame_offset = Vector2.ZERO
 
 
 func _memory() -> Dictionary:
