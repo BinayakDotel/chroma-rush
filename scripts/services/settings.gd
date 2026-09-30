@@ -8,6 +8,7 @@ signal changed(key: StringName)
 enum Quality { LOW, MEDIUM, HIGH }
 
 const PATH := "user://settings.cfg"
+const SANDBOX_PATH := "user://dev/settings.cfg"
 const MUSIC_BUS := &"Music"
 const SFX_BUS := &"SFX"
 const KEYS: Array[StringName] = [
@@ -23,6 +24,7 @@ var color_symbols := true
 var reduce_motion := false
 var show_fps := false
 var quality: int = Quality.MEDIUM if OS.has_feature("mobile") else Quality.HIGH
+var _path := PATH
 
 
 func _ready() -> void:
@@ -39,6 +41,12 @@ func set_value(key: StringName, value: Variant) -> void:
 	_save()
 	_apply_audio()
 	changed.emit(key)
+
+
+## Developer harness only: keep test changes out of the real settings file.
+func use_sandbox() -> void:
+	DirAccess.make_dir_recursive_absolute(SANDBOX_PATH.get_base_dir())
+	_path = SANDBOX_PATH
 
 
 ## Short vibration on phones, if enabled. `strength` 0..1 scales the duration.
@@ -85,4 +93,4 @@ func _save() -> void:
 	var cfg := ConfigFile.new()
 	for key in KEYS:
 		cfg.set_value("settings", key, get(key))
-	SaveIO.write(cfg, PATH)
+	SaveIO.write(cfg, _path)

@@ -10,6 +10,7 @@ const PATH := "user://profile.cfg"
 const LEGACY_PATH := "user://chroma_rush.cfg"
 const VERSION := 1
 const FREE_WORLD := "meadow"
+const SANDBOX_PATH := "user://dev/profile.cfg"
 
 var shards := 0
 var selected_world := FREE_WORLD
@@ -23,10 +24,20 @@ var entitlements := {}
 var stats := {"distance": 0.0, "gates": 0, "orbs": 0, "best_combo": 0, "best_distance": 0}
 ## Bookkeeping for the interstitial frequency cap (see Ads).
 var ads_state := {"runs_since": 0, "last_unix": 0.0}
+var _path := PATH
 
 
 func _ready() -> void:
 	_load()
+
+
+## Developer harness only: switch to a throwaway save so tests never touch real progress.
+func use_sandbox() -> void:
+	DirAccess.make_dir_recursive_absolute(SANDBOX_PATH.get_base_dir())
+	_path = SANDBOX_PATH
+	reset_progress()
+	entitlements.clear()
+	save()
 
 
 func best(world_id: String) -> int:
@@ -137,7 +148,7 @@ func save() -> void:
 	cfg.set_value("progress", "stats", stats)
 	cfg.set_value("store", "entitlements", entitlements)
 	cfg.set_value("ads", "state", ads_state)
-	SaveIO.write(cfg, PATH)
+	SaveIO.write(cfg, _path)
 
 
 func _load() -> void:
