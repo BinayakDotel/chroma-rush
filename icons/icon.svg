@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5B3FE0"/>
+      <stop offset="0.55" stop-color="#9B5CF0"/>
+      <stop offset="1" stop-color="#FF7EB3"/>
+    </linearGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFF4E0"/>
+      <stop offset="1" stop-color="#FFFFFF"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFE7A0" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#FFE7A0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#sky)"/>
+  <circle cx="512" cy="470" r="300" fill="url(#sun)"/>
+  <!-- Road running to the horizon, with lane lines -->
+  <polygon points="60,1024 964,1024 560,500 464,500" fill="url(#road)"/>
+  <polygon points="60,1024 118,1024 480,500 464,500" fill="#E5324A"/>
+  <polygon points="906,1024 964,1024 560,500 544,500" fill="#E5324A"/>
+  <polygon points="352,1024 382,1024 500,500 492,500" fill="#E5324A" opacity="0.85"/>
+  <polygon points="642,1024 672,1024 532,500 524,500" fill="#E5324A" opacity="0.85"/>
+  <!-- The three gate shapes -->
+  <g stroke="#2A1650" stroke-width="26" stroke-linejoin="round">
+    <circle cx="232" cy="340" r="118" fill="#E61F33"/>
+    <polygon points="512,168 646,408 378,408" fill="#FFD61A"/>
+    <rect x="690" y="222" width="220" height="220" rx="26" fill="#1A4DE6"/>
+  </g>
+  <g fill="#FFFFFF" opacity="0.55">
+    <circle cx="196" cy="300" r="30"/>
+    <circle cx="486" cy="290" r="22"/>
+    <circle cx="742" cy="276" r="26"/>
+  </g>
+</svg>
