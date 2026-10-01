@@ -77,7 +77,7 @@ Three goals at a time, such as "pass 30 gates in one run" or "collect 140 orbs".
 - **Five worlds**: Meadow, Glacier, Canyon, Volcano and Solar System, each with its own sky, scenery, landmarks, obstacles, gate arch, vehicle and driver.
 - **Readable for everyone**: one colour set in every world, chosen to stay distinct under protanopia, deuteranopia and tritanopia, plus a shape per colour.
 - **Endless and stable**: the track is generated as you drive, with bounded memory and a floating origin, so a 60 km run uses the same memory as a 1 km run.
-- **Full navigation, in symbols**: home screen with a dock (missions, upgrades, shop) and world picker, how to play, pause, a scoreboard-style results screen, settings, and the Android back button. Buttons and call-outs are icons wherever an icon can say it. Lists scroll from anywhere a finger lands, and overlays close on a tap outside.
+- **Full navigation**: home screen with a dock (missions, upgrades, shop) and world picker, how to play, pause, a scoreboard-style results screen, settings, and the Android back button. Lists scroll from anywhere a finger lands, and overlays close on a tap outside.
 - **A soft, modern low-poly look**: no dark outlines; shapes are separated by rim light, glow and soft shadows. Glass gates, glossy gems, a calm road with light lane dashes and low kerbs, linear colour with soft bloom.
 - **Smooth motion**: the vehicle glides between lanes, leans, squashes and pops on springs, with its wheels on the road; pickups and gates throw sparkles.
 - **Progression**: shards from orbs, distance and missions buy upgrades and unlock new worlds; Phoenix gems bank free revives; best score per world; lifetime stats.

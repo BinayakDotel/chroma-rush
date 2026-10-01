@@ -1,15 +1,12 @@
 extends UiScreen
-## End of a run, laid out like a scoreboard and told in symbols and numbers, not words. A badge
-## shows how the run ended (a crash or an empty tank); the score is the hero, straight on the
-## dimmed scene, with the best score under it. One card holds the rest: distance, gates and
-## shards as three numbers; the missions as progress rings (tap them for the details); and how
-## close the shards are to the next upgrade or world. Then at most one row of offers (a second
-## chance, double shards) and the retry button.
+## End of a run, laid out like a scoreboard rather than a form. The score is the hero, straight
+## on the dimmed scene. Under it one card holds everything else: three numbers (distance, gates,
+## shards), the missions as progress rings, and what the shards are building towards. Then at
+## most one row of offers (a second chance, double shards) and RETRY.
 
-var _cause: UiIcon
+var _title: Label
 var _score: Label
 var _best: PanelContainer
-var _best_icon: UiIcon
 var _best_label: Label
 var _column: VBoxContainer
 var _stats: HBoxContainer
@@ -17,7 +14,6 @@ var _shards_value: Label
 var _mission_box: VBoxContainer
 var _missions: HBoxContainer
 var _goal_box: VBoxContainer
-var _goal_icon: UiIcon
 var _goal_label: Label
 var _goal_bar: ProgressBar
 var _goal_ready: Button
@@ -43,24 +39,15 @@ func build() -> void:
 	_column.custom_minimum_size.x = 560
 	center.add_child(_column)
 
-	var cause_row := CenterContainer.new()
-	_column.add_child(cause_row)
-	var cause_badge := UiKit.pill(UiKit.STYLES.pink[0], Vector2(18, 18))
-	_cause = UiIcon.make("burst", Color.WHITE, Vector2(52, 52))
-	cause_badge.add_child(_cause)
-	cause_row.add_child(cause_badge)
+	_title = UiKit.centered(UiKit.title("CRASHED!", 52, UiKit.STYLES.pink[0]))
+	_column.add_child(_title)
 	_score = UiKit.centered(UiKit.title("0", 128, Color.WHITE))
 	_column.add_child(_score)
 	var best_row := CenterContainer.new()
 	_column.add_child(best_row)
-	_best = UiKit.pill(UiKit.GOLD, Vector2(20, 6))
-	var best_content := UiKit.hbox(8)
-	_best.add_child(best_content)
-	_best_icon = UiIcon.make("trophy", Color.WHITE, Vector2(30, 30))
-	_best_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	best_content.add_child(_best_icon)
-	_best_label = UiKit.title("0", 30, Color.WHITE, Color(0.55, 0.3, 0.05))
-	best_content.add_child(_best_label)
+	_best = UiKit.pill(UiKit.GOLD, Vector2(22, 6))
+	_best_label = UiKit.title("NEW BEST!", 28, Color.WHITE, Color(0.55, 0.3, 0.05))
+	_best.add_child(_best_label)
 	best_row.add_child(_best)
 
 	var card := UiKit.card(22, UiKit.CARD, 32)
@@ -74,70 +61,53 @@ func build() -> void:
 	_mission_box.add_child(_divider())
 	_missions = UiKit.hbox(8)
 	_mission_box.add_child(_missions)
-	# The rings carry no description, so a tap on them opens the missions screen.
-	_mission_box.mouse_filter = Control.MOUSE_FILTER_STOP
-	_mission_box.gui_input.connect(func(event: InputEvent) -> void:
-		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			Sfx.click()
-			ui.open_missions())
 	# What the shards are for: progress towards the next upgrade or world, or a button straight
 	# to the upgrades once one can be afforded.
-	_goal_box = UiKit.vbox(10)
+	_goal_box = UiKit.vbox(6)
 	inner.add_child(_goal_box)
 	_goal_box.add_child(_divider())
-	var goal_row := UiKit.hbox(12)
-	_goal_box.add_child(goal_row)
-	_goal_icon = UiIcon.make("upgrade", UiKit.STYLES.sky[1], Vector2(30, 30))
-	_goal_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	goal_row.add_child(_goal_icon)
-	_goal_bar = UiKit.bar(0, 14, UiKit.GOLD, Color(0.9, 0.88, 0.96))
+	_goal_label = UiKit.centered(UiKit.text("", 19, true, 800))
+	_goal_label.label_settings.font_color = UiKit.INK_SOFT
+	_goal_box.add_child(_goal_label)
+	_goal_bar = UiKit.bar(0, 10, UiKit.GOLD, Color(0.9, 0.88, 0.96))
 	(_goal_bar.get_theme_stylebox("background") as StyleBoxFlat).set_border_width_all(0)
-	_goal_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_goal_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	goal_row.add_child(_goal_bar)
-	var goal_count := UiKit.shard_amount(0, 22, true)
-	_goal_label = goal_count.get_node("Amount")
-	goal_row.add_child(goal_count)
-	_goal_ready = UiKit.button("!", "gold", Vector2(0, 66), 34, ["upgrade", "bolt"])
+	_goal_box.add_child(_goal_bar)
+	_goal_ready = UiKit.button("UPGRADE READY", "gold", Vector2(0, 62), 24, "upgrade")
 	_goal_ready.pressed.connect(func() -> void: ui.open_upgrades())
 	inner.add_child(_goal_ready)
 
 	_offers = UiKit.hbox(12)
 	_column.add_child(_offers)
-	_token = _offer("sky", ["gem", "heart"], func() -> void: ui.revive_token_requested.emit())
-	_revive = _offer("pink", ["film", "heart"], func() -> void: ui.revive_requested.emit())
-	_double = _offer("gold", ["film", "shard"], func() -> void: ui.double_shards_requested.emit())
-	UiKit.set_text(_double, "x2")
+	_token = _offer("FREE REVIVE", "sky", "gem", func() -> void: ui.revive_token_requested.emit())
+	_revive = _offer("SECOND CHANCE", "pink", "film", func() -> void: ui.revive_requested.emit())
+	_double = _offer("DOUBLE SHARDS", "gold", "film", func() -> void: ui.double_shards_requested.emit())
 	var row := UiKit.hbox(14)
 	_column.add_child(row)
-	var home := UiKit.icon_button("home", "light", 100)
+	var home := UiKit.icon_button("home", "light", 96)
 	home.pressed.connect(ui.home_requested.emit)
 	row.add_child(home)
-	var retry := UiKit.button("", "primary", Vector2(0, 100), 60, "retry")
+	var retry := UiKit.button("RETRY", "primary", Vector2(0, 96), 48, "retry")
 	retry.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	retry.pressed.connect(ui.restart_requested.emit)
 	row.add_child(retry)
-	_sections = [cause_row, _score, best_row, card, _offers, row]
+	_sections = [_title, _score, best_row, card, _offers, row]
 
 
-## `summary` keys: cause (icon for how the run ended), score, best, new_best, metres, gates,
-## shards, can_revive, revive_tokens (banked Phoenix gems usable now, 0 if none), can_double,
-## missions (a list of {mission, value}), goal ({name, cost, have, icon, upgrade}, or {} when
-## there is nothing left to buy).
+## `summary` keys: title, score, best, new_best, metres, gates, shards, can_revive,
+## revive_tokens (banked Phoenix gems usable now, 0 if none), can_double, missions (a list of
+## {mission, value}), goal ({name, cost, have, upgrade}, or {} when there is nothing left to buy).
 func show_summary(summary: Dictionary) -> void:
-	_cause.set_icon(summary.get("cause", "burst"), Color.WHITE)
-	# The best score, in gold with a star when this run set it.
-	_best_icon.set_icon("star" if summary.new_best else "trophy", Color.WHITE)
-	_best_label.text = UiKit.thousands(maxi(summary.best, summary.score))
+	_title.text = summary.title
+	_best_label.text = "NEW BEST!" if summary.new_best else "BEST  %s" % UiKit.thousands(summary.best)
 	_best.get_theme_stylebox("panel").bg_color = UiKit.GOLD if summary.new_best else Color(0.3, 0.24, 0.5, 0.85)
 
 	for child in _stats.get_children():
 		child.queue_free()
-	_stat("motion", "%s m" % UiKit.thousands(summary.metres))
+	_stat("motion", "%s m" % UiKit.thousands(summary.metres), "DISTANCE")
 	_stats.add_child(_divider(true))
-	_stat("check", str(summary.gates))
+	_stat("check", str(summary.gates), "GATES")
 	_stats.add_child(_divider(true))
-	_shards_value = _stat("shard", "+0")
+	_shards_value = _stat("shard", "+0", "SHARDS")
 
 	for child in _missions.get_children():
 		child.queue_free()
@@ -150,17 +120,18 @@ func show_summary(summary: Dictionary) -> void:
 	var affordable := not goal.is_empty() and int(goal.have) >= int(goal.cost)
 	_goal_ready.visible = _portrait and affordable and bool(goal.get("upgrade", false))
 	_goal_box.visible = _portrait and not goal.is_empty() and not _goal_ready.visible
-	if not goal.is_empty():
-		(_goal_ready.get_meta("icons")[1] as UiIcon).set_icon(str(goal.icon))
-		_goal_icon.set_icon(str(goal.icon), UiKit.STYLES.sky[1])
+	if _goal_ready.visible:
+		UiKit.set_text(_goal_ready, "UPGRADE READY:  %s" % goal.name)
+	elif not goal.is_empty():
 		_goal_bar.value = clampf(float(goal.have) / maxf(float(goal.cost), 1.0), 0.0, 1.0)
-		_goal_label.text = "%s / %s" % [UiKit.thousands(mini(int(goal.have), int(goal.cost))), UiKit.thousands(int(goal.cost))]
+		_goal_label.text = ("YOU CAN UNLOCK  %s!" % goal.name) if affordable else (
+			"%s more shards for  %s" % [UiKit.thousands(int(goal.cost) - int(goal.have)), goal.name])
 
 	# One second chance on offer at a time: a banked revive comes before the ad.
 	var tokens: int = summary.get("revive_tokens", 0)
 	_token.visible = tokens > 0
 	_token.disabled = false
-	UiKit.set_text(_token, str(tokens))
+	UiKit.set_text(_token, "FREE REVIVE  (%d)" % tokens)
 	_revive.visible = summary.can_revive and tokens <= 0
 	_revive.disabled = false
 	_double.visible = summary.can_double
@@ -228,44 +199,48 @@ func _bounce(control: Control, times := 1) -> void:
 	pop.tween_property(control, "scale", Vector2.ONE, 0.16)
 
 
-## One number with its icon. Returns the number's label.
-func _stat(icon: String, value: String) -> Label:
-	var cell := UiKit.hbox(10)
+## One number with its icon and a small caption. Returns the number's label.
+func _stat(icon: String, value: String, caption: String) -> Label:
+	var cell := UiKit.vbox(0)
 	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	cell.alignment = BoxContainer.ALIGNMENT_CENTER
-	var glyph := UiIcon.make(icon, UiKit.GOLD.darkened(0.1) if icon == "shard" else UiKit.STYLES.sky[1], Vector2(30, 30))
+	var top := UiKit.hbox(8)
+	top.alignment = BoxContainer.ALIGNMENT_CENTER
+	cell.add_child(top)
+	var glyph := UiIcon.make(icon, UiKit.GOLD.darkened(0.1) if icon == "shard" else UiKit.STYLES.sky[1], Vector2(26, 26))
 	glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	cell.add_child(glyph)
-	var number := UiKit.title(value, 40, UiKit.INK, Color(1, 1, 1, 0))
+	top.add_child(glyph)
+	var number := UiKit.title(value, 36, UiKit.INK, Color(1, 1, 1, 0))
 	number.label_settings.shadow_color = Color(0, 0, 0, 0)
-	cell.add_child(number)
+	top.add_child(number)
+	var label := UiKit.centered(UiKit.text(caption, 17, true, 900))
+	label.label_settings.font_color = UiKit.INK_SOFT
+	cell.add_child(label)
 	_stats.add_child(cell)
 	return number
 
 
-## One mission: its ring and how far along it is, or what it paid.
+## One mission: its ring, how far along it is (or what it paid), and what it asks for.
 func _mission(mission: Dictionary, value: int) -> Control:
 	var done := value >= int(mission.target)
 	var cell := UiKit.vbox(4)
 	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var ring := CenterContainer.new()
-	ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ring.add_child(MissionBadge.make(mission, value, 88.0))
+	ring.add_child(MissionBadge.make(mission, value, 84.0))
 	cell.add_child(ring)
-	var count: Control
+	var count := UiKit.centered(UiKit.text(
+		"+%d" % Missions.payout(mission) if done else "%s / %s" % [UiKit.thousands(value), UiKit.thousands(int(mission.target))],
+		21, true, 900))
 	if done:
-		count = UiKit.shard_amount(Missions.payout(mission), 22, true)
-		(count.get_node("Amount") as Label).text = "+%d" % Missions.payout(mission)
-	else:
-		count = UiKit.centered(UiKit.text("%s / %s" % [UiKit.thousands(value), UiKit.thousands(int(mission.target))], 22, true, 900))
-	count.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		count.label_settings.font_color = UiKit.GOLD.darkened(0.25)
 	cell.add_child(count)
+	var what := UiKit.centered(UiKit.wrapped(UiKit.text(Missions.brief(mission), 18, true, 700)))
+	what.label_settings.font_color = UiKit.INK_SOFT
+	cell.add_child(what)
 	return cell
 
 
-func _offer(style: String, icons: Array, action: Callable) -> Button:
-	var button := UiKit.button("", style, Vector2(0, 76), 34, icons)
+func _offer(label: String, style: String, icon: String, action: Callable) -> Button:
+	var button := UiKit.button(label, style, Vector2(0, 72), 22, icon)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.pressed.connect(func() -> void:
 		button.disabled = true
@@ -279,7 +254,6 @@ func _divider(upright := false) -> ColorRect:
 	var line := ColorRect.new()
 	line.color = Color(0.9, 0.88, 0.96)
 	line.custom_minimum_size = Vector2(2, 44) if upright else Vector2(0, 2)
-	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if upright:
 		line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	return line

@@ -27,7 +27,7 @@ func build() -> void:
 	pill.add_child(_shards)
 	content.add_child(header("SHOP", pill))
 	_list = scroll_list(content, 14)
-	var restore := UiKit.button("RESTORE", "light", Vector2(0, 56), 22, "restore")
+	var restore := UiKit.button("RESTORE PURCHASES", "light", Vector2(0, 56), 22, "restore")
 	restore.pressed.connect(Store.restore)
 	restore.disabled = not Store.is_available()
 	content.add_child(restore)
@@ -51,9 +51,7 @@ func _rebuild() -> void:
 	if not is_instance_valid(_list):
 		return
 	for child in _list.get_children():
-		_list.remove_child(child)
 		child.queue_free()
-	fit_scroll.call_deferred(maxf(get_viewport_rect().size.y - 330.0, 260.0))
 	if not Store.is_available():
 		var note := UiKit.wrapped(UiKit.centered(UiKit.text(
 			"The store isn't available right now. Check your connection and try again.", 22, true, 700)))
@@ -93,7 +91,7 @@ func _product_card(id: String) -> Control:
 		line.add_child(label)
 		info.add_child(line)
 	if Store.is_owned(id):
-		var owned := UiKit.button("", "light", Vector2(150, 64), 30, "check")
+		var owned := UiKit.button("OWNED", "light", Vector2(150, 64), 24, "check")
 		owned.disabled = true
 		owned.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(owned)
@@ -112,4 +110,6 @@ func layout(portrait: bool) -> void:
 	var card: Control = find_child("Card", true, false)
 	if card:
 		card.custom_minimum_size.x = minf(card_width(portrait), 640.0)
-	fit_scroll.call_deferred(maxf(get_viewport_rect().size.y - 330.0, 260.0))
+	var scroll: Control = find_child("Scroll", true, false)
+	if scroll:
+		scroll.custom_minimum_size.y = clampf(get_viewport_rect().size.y - 330.0, 260.0, 760.0)

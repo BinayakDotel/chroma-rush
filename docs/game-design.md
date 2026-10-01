@@ -198,9 +198,9 @@ The art is low-poly, but it should read as a modern, soft, toy-like game, not as
 
 ### Interface
 
-- **Symbols before words.** A button, a call-out or a caption is an icon unless an icon cannot say it. Words are kept for world names, mission descriptions, the shop, settings toggles and confirmations. In a run, call-outs are icons with at most a number: fuel and a tick for a save, a star and "x3" for a combo.
-- **The score is the hero.** The results screen is a scoreboard, not a form: a badge for how the run ended, the score straight on the scene, one card with three numbers, the missions as rings and a bar for what the shards are building towards, then at most one row of offers and the retry button.
-- **Actions in thumb reach.** The home screen keeps shards and settings in the top corners and puts missions, upgrades, shop and play at the bottom.
+- **Icons support words; they do not replace them.** Buttons and call-outs carry an icon and a short label. A pass that replaced the labels with symbols alone was tried and undone: without the words the buttons and call-outs were not understandable.
+- **The score is the hero.** The results screen is a scoreboard, not a form: the score straight on the scene, one card with three numbers, the missions as rings and one line for what the shards are building towards, then at most one row of offers and RETRY.
+- **Actions in thumb reach.** The home screen keeps shards and settings in the top corners and puts MISSIONS, UPGRADES, SHOP and PLAY at the bottom.
 - **Readable.** Body text is bold (Nunito 700 to 900) and nothing is smaller than 18 canvas pixels, about 9 pt on a phone. Numbers that matter use the title font.
 - **Lists scroll from anywhere.** A list built with `UiScreen.scroll_list()` scrolls when dragged by a row or a button, not only by the gaps (see `UiKit.pass_touches`); a 12 px dead zone keeps taps from nudging it. Overlays that are a card of options close on a tap outside the card, and cards pop in.
 - **The brand shows the vehicle and its driver**, so the game reads as a racer, not a block puzzle. `scripts/dev/render_icons.gd` renders the fox in its kart from the real model and builds everything from it: the logo (white CHROMA on a deep lip, then RUSH leaning forward beside the kart, which trails the three gate colours; `scripts/ui/logo.gd`), the app icon (the kart racing out of a three-colour trail) and the splash.
