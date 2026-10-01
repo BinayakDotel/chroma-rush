@@ -138,18 +138,18 @@ func add_shards(amount: int) -> void:
 
 
 ## The next thing worth saving for: the cheapest upgrade level or world not bought yet.
-## Returns {name, cost, upgrade (true for an upgrade, false for a world)}, or {} when
+## Returns {name, cost, icon, upgrade (true for an upgrade, false for a world)}, or {} when
 ## everything is owned.
 func next_goal() -> Dictionary:
 	var goal := {}
 	for id: String in Economy.UPGRADES:
 		var cost := Economy.upgrade_cost(id, upgrade_level(id))
 		if cost >= 0 and (goal.is_empty() or cost < int(goal.cost)):
-			goal = {"name": "%s LEVEL %d" % [Economy.UPGRADES[id].name, upgrade_level(id) + 1], "cost": cost, "upgrade": true}
+			goal = {"name": "%s LEVEL %d" % [Economy.UPGRADES[id].name, upgrade_level(id) + 1], "cost": cost, "icon": Economy.UPGRADES[id].icon, "upgrade": true}
 	for world: Dictionary in Themes.all():
 		var cost := Economy.world_cost(world.id)
 		if not is_unlocked(world.id) and (goal.is_empty() or cost < int(goal.cost)):
-			goal = {"name": str(world.name), "cost": cost, "upgrade": false}
+			goal = {"name": str(world.name), "cost": cost, "icon": "lock", "upgrade": false}
 	return goal
 
 

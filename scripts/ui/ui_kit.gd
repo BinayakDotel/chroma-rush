@@ -86,8 +86,10 @@ static func wrapped(label: Label) -> Label:
 	return label
 
 
-## Chunky rounded button with a darker lip underneath that squashes when pressed.
-static func button(label: String, style := "primary", size := Vector2(0, 76), font_size := 34, icon := "") -> Button:
+## Chunky rounded button with a darker lip underneath that squashes when pressed. `icon` is
+## one icon name or a list of them, drawn before the label; with an empty label the button is
+## symbols only, which is the default choice: words are for where a symbol cannot say it.
+static func button(label: String, style := "primary", size := Vector2(0, 76), font_size := 34, icon: Variant = "") -> Button:
 	var colors: Array = STYLES[style]
 	var b := Button.new()
 	b.text = label
@@ -108,8 +110,9 @@ static func button(label: String, style := "primary", size := Vector2(0, 76), fo
 	b.add_theme_stylebox_override("pressed", _candy(Color(colors[0]).darkened(0.05), colors[1], radius, 2))
 	b.add_theme_stylebox_override("disabled", _candy(Color(colors[0], 0.5), Color(colors[1], 0.5), radius, 7))
 	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	if not icon.is_empty():
-		# Icon (and optional label) centred in the button; the lip squash nudges them down.
+	var icons: Array = icon if icon is Array else ([] if str(icon).is_empty() else [icon])
+	if not icons.is_empty():
+		# Icons (and optional label) centred in the button; the lip squash nudges them down.
 		b.text = ""
 		var center := CenterContainer.new()
 		full_rect(center)
@@ -119,20 +122,25 @@ static func button(label: String, style := "primary", size := Vector2(0, 76), fo
 		var row := hbox(12)
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		center.add_child(row)
-		var glyph := UiIcon.make(icon, text_color, Vector2(font_size, font_size) * 0.95)
-		row.add_child(glyph)
-		b.set_meta("icon", glyph)
-		if not label.is_empty():
-			var caption := Label.new()
-			caption.text = label
-			caption.add_theme_font_override("font", TITLE_FONT)
-			caption.add_theme_font_size_override("font_size", font_size)
-			caption.add_theme_color_override("font_color", text_color)
-			if text_color == Color.WHITE:
-				caption.add_theme_constant_override("outline_size", maxi(4, font_size / 6))
-				caption.add_theme_color_override("font_outline_color", Color(colors[1]).darkened(0.35))
-			row.add_child(caption)
-			b.set_meta("caption", caption)
+		var glyphs: Array[UiIcon] = []
+		for name: Variant in icons:
+			var glyph := UiIcon.make(str(name), text_color, Vector2(font_size, font_size) * 0.95)
+			glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			row.add_child(glyph)
+			glyphs.append(glyph)
+		b.set_meta("icon", glyphs[0])
+		b.set_meta("icons", glyphs)
+		var caption := Label.new()
+		caption.text = label
+		caption.visible = not label.is_empty()
+		caption.add_theme_font_override("font", TITLE_FONT)
+		caption.add_theme_font_size_override("font_size", font_size)
+		caption.add_theme_color_override("font_color", text_color)
+		if text_color == Color.WHITE:
+			caption.add_theme_constant_override("outline_size", maxi(4, font_size / 6))
+			caption.add_theme_color_override("font_outline_color", Color(colors[1]).darkened(0.35))
+		row.add_child(caption)
+		b.set_meta("caption", caption)
 		b.button_down.connect(func() -> void: center.offset_top = 5; center.offset_bottom = -1)
 		b.button_up.connect(func() -> void: center.offset_top = 0; center.offset_bottom = -6)
 	b.pressed.connect(func() -> void: Sfx.click())
@@ -143,6 +151,7 @@ static func button(label: String, style := "primary", size := Vector2(0, 76), fo
 static func set_text(b: Button, value: String) -> void:
 	if b.has_meta("caption"):
 		(b.get_meta("caption") as Label).text = value
+		(b.get_meta("caption") as Label).visible = not value.is_empty()
 	else:
 		b.text = value
 

@@ -1,6 +1,7 @@
 extends UiScreen
 ## In-run HUD: score and combo, fuel gauge, distance and pause along the top; the three colour
-## buttons (each with its shape), the Prism meter and the PRISM button along the bottom.
+## buttons (each with its shape), the Prism meter and the Prism button along the bottom.
+## Call-outs in the middle are symbols with at most a number beside them, not sentences.
 ## Portrait puts the colour buttons centred under the thumb; landscape puts them bottom-left.
 
 const KEYS := ["J", "K", "L"]
@@ -35,6 +36,7 @@ var _magnet_bar: ProgressBar
 var _speed: Label
 var _hint: PanelContainer
 var _hint_label: Label
+var _hint_icons: HBoxContainer
 var _hint_tween: Tween
 var _bottom: BoxContainer
 var _swatch_row: HBoxContainer
@@ -43,7 +45,8 @@ var _swatch_icons: Array[UiIcon] = []
 var _key_labels: Array[Label] = []
 var _meter: ProgressBar
 var _meter_fill: StyleBoxFlat
-var _meter_label: Label
+var _meter_row: HBoxContainer
+var _meter_icon: UiIcon
 var _prism: Button
 var _speed_fx: ColorRect
 var _selected := 0
@@ -137,8 +140,14 @@ func build() -> void:
 	_hint = UiKit.pill(Color(0.1, 0.05, 0.22, 0.7), Vector2(22, 8))
 	_hint.visible = false
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hint_label = UiKit.title("", 30)
-	_hint.add_child(_hint_label)
+	var hint_row := UiKit.hbox(10)
+	hint_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hint.add_child(hint_row)
+	_hint_icons = UiKit.hbox(8)
+	_hint_icons.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hint_row.add_child(_hint_icons)
+	_hint_label = UiKit.title("", 32)
+	hint_row.add_child(_hint_label)
 	hint_holder.add_child(_hint)
 
 	_bottom = HBoxContainer.new()
@@ -147,11 +156,16 @@ func build() -> void:
 	var controls := UiKit.vbox(10)
 	controls.name = "Controls"
 	_bottom.add_child(controls)
-	_meter_label = UiKit.text("PRISM", 20, false, 900)
-	controls.add_child(_meter_label)
+	# The Prism meter: a bolt and a bar. When it is full the bolt button appears.
+	_meter_row = UiKit.hbox(8)
+	controls.add_child(_meter_row)
+	_meter_icon = UiIcon.make("bolt", Color.WHITE, Vector2(28, 28))
+	_meter_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_meter_row.add_child(_meter_icon)
 	_meter = UiKit.bar(300, 18, Color(1, 1, 1, 0.9))
+	_meter.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_meter_fill = _meter.get_theme_stylebox("fill")
-	controls.add_child(_meter)
+	_meter_row.add_child(_meter)
 	_swatch_row = UiKit.hbox(16)
 	controls.add_child(_swatch_row)
 	for i in Defs.COLORS.size():
@@ -160,7 +174,7 @@ func build() -> void:
 	var gap := UiKit.spacer()
 	gap.name = "Gap"
 	_bottom.add_child(gap)
-	_prism = UiKit.button("PRISM!", "gold", Vector2(190, 96), 40, "bolt")
+	_prism = UiKit.button("", "gold", Vector2(150, 96), 60, "bolt")
 	_prism.size_flags_vertical = Control.SIZE_SHRINK_END
 	_prism.visible = false
 	_prism.pressed.connect(ui.prism_pressed.emit)
@@ -305,12 +319,8 @@ func set_meter(value: float, is_ready: bool, active: bool) -> void:
 	_meter_ready = is_ready and not active
 	_meter_active = active
 	_prism.visible = _meter_ready
-	if active:
-		_meter_label.text = "PRISM OVERDRIVE!"
-	elif is_ready:
-		_meter_label.text = "PRISM READY!" if OS.has_feature("mobile") else "PRISM READY!  (SHIFT)"
-	else:
-		_meter_label.text = "PRISM"
+	_meter_icon.modulate = UiKit.GOLD if is_ready or active else Color.WHITE
+	if not is_ready and not active:
 		_meter_fill.bg_color = Color(1, 1, 1, 0.9)
 
 
@@ -320,9 +330,18 @@ func set_speed_fx(amount: float) -> void:
 	mat.set_shader_parameter("amount", 0.0 if Settings.reduce_motion else clampf(amount, 0.0, 1.0))
 
 
-## Big centred message for first-run tips and milestones.
-func hint(text: String, color := Color.WHITE, hold := 1.4) -> void:
+## Call-out for tips, milestones and pickups: `icons` (names from UiIcon) and, if a symbol
+## cannot say it alone, a short `text` such as a number.
+func hint(text: String, color := Color.WHITE, hold := 1.4, icons: Array = []) -> void:
+	for child in _hint_icons.get_children():
+		child.queue_free()
+	for icon: String in icons:
+		var glyph := UiIcon.make(icon, color, Vector2(40, 40))
+		glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		_hint_icons.add_child(glyph)
+	_hint_icons.visible = not icons.is_empty()
 	_hint_label.text = text
+	_hint_label.visible = not text.is_empty()
 	_hint_label.label_settings.font_color = color
 	_hint.visible = true
 	_hint.modulate.a = 0.0
@@ -355,8 +374,7 @@ func layout(portrait: bool) -> void:
 		controls.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		controls.alignment = BoxContainer.ALIGNMENT_END
 		_swatch_row.alignment = BoxContainer.ALIGNMENT_CENTER
-		_meter.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		_meter_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_meter_row.alignment = BoxContainer.ALIGNMENT_CENTER
 		# PRISM button sits above the colour buttons in portrait.
 		if _prism.get_parent() != controls:
 			_prism.reparent(controls)
@@ -371,8 +389,7 @@ func layout(portrait: bool) -> void:
 		controls.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		controls.alignment = BoxContainer.ALIGNMENT_END
 		_swatch_row.alignment = BoxContainer.ALIGNMENT_BEGIN
-		_meter.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		_meter_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		_meter_row.alignment = BoxContainer.ALIGNMENT_BEGIN
 		if _prism.get_parent() != _bottom:
 			_prism.reparent(_bottom)
 		_prism.size_flags_horizontal = Control.SIZE_SHRINK_END

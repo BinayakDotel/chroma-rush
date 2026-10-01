@@ -18,18 +18,15 @@ func build() -> void:
 	content.add_child(header("SETTINGS"))
 	var list := scroll_list(content)
 
-	_section(list, "AUDIO")
-	_slider_row(list, "music", "Music", &"music_volume")
-	_slider_row(list, "sound", "Sound effects", &"sfx_volume")
+	_slider_row(list, "music", &"music_volume")
+	_slider_row(list, "sound", &"sfx_volume")
 
-	_section(list, "GAMEPLAY")
 	if OS.has_feature("mobile"):
-		_toggle_row(list, "vibrate", "Vibration", "", &"haptics")
-	_toggle_row(list, "eye", "Colour shapes", "Circle, triangle and square on gates and buttons", &"color_symbols")
-	_toggle_row(list, "motion", "Reduce motion", "No camera shake or speed lines", &"reduce_motion")
-	_toggle_row(list, "graphics", "Show FPS", "", &"show_fps")
+		_toggle_row(list, "vibrate", "Vibration", &"haptics")
+	_toggle_row(list, "eye", "Colour shapes", &"color_symbols")
+	_toggle_row(list, "motion", "Reduce motion", &"reduce_motion")
+	_toggle_row(list, "graphics", "Show FPS", &"show_fps")
 
-	_section(list, "GRAPHICS")
 	var quality := UiKit.hbox(10)
 	for i in 3:
 		var b := UiKit.button(["LOW", "MEDIUM", "HIGH"][i], "light", Vector2(0, 60), 24)
@@ -42,16 +39,16 @@ func build() -> void:
 	list.add_child(quality)
 	_refresh_quality()
 
-	_section(list, "PURCHASES")
-	var restore := UiKit.button("RESTORE PURCHASES", "sky", Vector2(0, 64), 26, "restore")
+	var actions := UiKit.hbox(10)
+	var how := UiKit.button("", "light", Vector2(96, 64), 34, "help")
+	how.pressed.connect(func() -> void: ui.open_howto(false))
+	actions.add_child(how)
+	var restore := UiKit.button("RESTORE", "sky", Vector2(0, 64), 24, "restore")
+	restore.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	restore.pressed.connect(Store.restore)
 	restore.disabled = not Store.is_available()
-	list.add_child(restore)
-
-	_section(list, "ABOUT")
-	var how := UiKit.button("HOW TO PLAY", "light", Vector2(0, 60), 24, "help")
-	how.pressed.connect(func() -> void: ui.open_howto(false))
-	list.add_child(how)
+	actions.add_child(restore)
+	list.add_child(actions)
 	var links := UiKit.hbox(10)
 	var privacy := UiKit.button("PRIVACY", "light", Vector2(0, 60), 22, "link")
 	privacy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -67,49 +64,41 @@ func build() -> void:
 		ProjectSettings.get_setting("application/config/version", "1.0.0"), 18, true, 600))
 	credits.label_settings.font_color = UiKit.INK_SOFT
 	list.add_child(credits)
-	var reset := UiKit.button("RESET PROGRESS", "danger", Vector2(0, 60), 22, "reset")
+	var reset := UiKit.button("RESET", "danger", Vector2(0, 60), 22, "reset")
 	reset.pressed.connect(func() -> void:
 		ui.confirm("RESET?", "This clears your shards, unlocked worlds and best scores. Purchases are kept.",
 			"RESET", Profile.reset_progress, true))
 	list.add_child(reset)
 
 
-func _section(list: VBoxContainer, title_text: String) -> void:
-	var label := UiKit.text(title_text, 19, true, 900)
-	label.label_settings.font_color = UiKit.INK_SOFT
-	list.add_child(label)
-
-
-func _row(list: VBoxContainer, icon: String, title_text: String, subtitle: String) -> HBoxContainer:
+func _row(list: VBoxContainer, icon: String, title_text: String) -> HBoxContainer:
 	var chip := UiKit.card(14, UiKit.CARD_TINT, 22)
 	(chip.get_theme_stylebox("panel") as StyleBoxFlat).shadow_size = 0
 	list.add_child(chip)
 	var row := UiKit.hbox(14)
 	chip.add_child(row)
-	row.add_child(UiIcon.make(icon, UiKit.INK, Vector2(32, 32)))
-	var text_col := UiKit.vbox(0)
-	text_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(text_col)
-	text_col.add_child(UiKit.text(title_text, 24, true, 800))
-	if not subtitle.is_empty():
-		var sub := UiKit.wrapped(UiKit.text(subtitle, 18, true, 600))
-		sub.label_settings.font_color = UiKit.INK_SOFT
-		text_col.add_child(sub)
+	var glyph := UiIcon.make(icon, UiKit.INK, Vector2(34, 34))
+	glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(glyph)
+	if not title_text.is_empty():
+		var label := UiKit.text(title_text, 24, true, 800)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(label)
 	return row
 
 
-func _toggle_row(list: VBoxContainer, icon: String, title_text: String, subtitle: String, key: StringName) -> void:
-	var row := _row(list, icon, title_text, subtitle)
+func _toggle_row(list: VBoxContainer, icon: String, title_text: String, key: StringName) -> void:
+	var row := _row(list, icon, title_text)
 	var toggle := UiKit.toggle(Settings.get(key))
 	toggle.toggled.connect(func(on: bool) -> void: Settings.set_value(key, on))
 	row.add_child(toggle)
 
 
-func _slider_row(list: VBoxContainer, icon: String, title_text: String, key: StringName) -> void:
-	var row := _row(list, icon, title_text, "")
+## A volume slider: the icon says which one, so there is no label.
+func _slider_row(list: VBoxContainer, icon: String, key: StringName) -> void:
+	var row := _row(list, icon, "")
 	var s := UiKit.slider(Settings.get(key))
-	s.custom_minimum_size.x = 220
-	s.size_flags_horizontal = Control.SIZE_SHRINK_END
+	s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	s.value_changed.connect(func(v: float) -> void: Settings.set_value(key, v))
 	row.add_child(s)
 
@@ -132,6 +121,4 @@ func layout(portrait: bool) -> void:
 	var card: Control = find_child("Card", true, false)
 	if card:
 		card.custom_minimum_size.x = minf(card_width(portrait), 640.0)
-	var scroll: Control = find_child("Scroll", true, false)
-	if scroll:
-		scroll.custom_minimum_size.y = clampf(get_viewport_rect().size.y - 260.0, 300.0, 900.0)
+	fit_scroll.call_deferred(maxf(get_viewport_rect().size.y - 260.0, 300.0))
