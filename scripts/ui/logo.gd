@@ -27,6 +27,9 @@ var font_size := 108:
 var mascot: Texture2D
 ## Still (for rendering the splash) or gently moving.
 var animated := true
+## Without the kart, the mark is the two words over the colour trail (the splash has its own,
+## much bigger, kart).
+var show_kart := true
 
 var _t := 0.0
 var _font: Font = preload("res://fonts/LilitaOne-Regular.ttf")
@@ -55,7 +58,7 @@ func _measure() -> void:
 	_rush_size = int(s * 0.8)
 	_rush_width = _text_width("RUSH", _rush_size) + s * 0.1
 	_kart = Vector2.ZERO
-	if mascot:
+	if mascot and show_kart:
 		_kart = Vector2(s * 1.75 * mascot.get_width() / mascot.get_height(), s * 1.75)
 	custom_minimum_size = Vector2(maxf(_chroma_width, _row_width()) + s * 0.5, s * CAP + s * 0.12 + maxf(_kart.y, s * 0.9))
 	queue_redraw()
@@ -77,7 +80,7 @@ func _draw() -> void:
 	var left := (size.x - _row_width()) * 0.5
 	var rush_baseline := top + row_height * 0.5 + _rush_size * CAP * 0.4
 	var kart_at := Vector2(left + _rush_width - _kart.x * 0.05, top + sin(_t * 7.0) * s * 0.008)
-	var trail_end := kart_at.x + _kart.x * 0.4
+	var trail_end := kart_at.x + _kart.x * 0.4 if show_kart else left + _rush_width + s * 0.2
 	var bar := s * 0.05
 	for i in TRAIL.size():
 		var y := rush_baseline + lip + s * 0.07 + i * bar * 2.5
@@ -87,7 +90,7 @@ func _draw() -> void:
 	draw_set_transform_matrix(Transform2D(Vector2(1.0, 0.0), Vector2(-LEAN, 1.0), Vector2(left + s * 0.14, rush_baseline)))
 	_letters("RUSH", Vector2.ZERO, _rush_size, lip * 0.8, s * 0.025)
 	draw_set_transform_matrix(Transform2D.IDENTITY)
-	if mascot:
+	if mascot and show_kart:
 		draw_set_transform(kart_at + _kart * 0.5, sin(_t * 3.5) * 0.015)
 		draw_texture_rect(mascot, Rect2(-_kart * 0.5, _kart), false)
 		draw_set_transform(Vector2.ZERO)

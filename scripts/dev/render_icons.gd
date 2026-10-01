@@ -4,13 +4,16 @@ extends SceneTree
 ##   icons/mascot.png            the fox in its kart on a clear background (used by the logo)
 ##   icons/icon_1024.png, _512   app icon: the mascot racing out of a three-colour trail
 ##   icons/android_*.png         Android launcher icons (legacy, adaptive foreground/background)
-##   icons/splash.png            the logo on a clear background, for the boot splash
+##   icons/splash.png            full-screen splash: the icon's sky, trail and kart under the logo
 ## It draws with the GPU, so it needs a window:
 ##   godot --path . -s res://scripts/dev/render_icons.gd
 ## then `godot --headless --path . --import` so the new images are picked up.
 
 const OUT := "res://icons/"
 const SKY_TOP := Color("3526C9")
+## The splash is tall, so its sky starts a little warmer than the icon's: less blue at the top.
+const SPLASH_TOP := Color("5330D8")
+const SPLASH_SIZE := Vector2i(1242, 2688)
 const SKY_MID := Color("8650F0")
 const SKY_LOW := Color("FF8AB8")
 const TRAIL: Array[Color] = [Color(0.96, 0.22, 0.3), Color(1.0, 0.82, 0.14), Color(0.2, 0.44, 1.0)]
@@ -42,6 +45,7 @@ func _render_all() -> void:
 	background.save_png(OUT + "android_background_432.png")
 
 	var splash := await _render_splash(texture)
+	splash.convert(Image.FORMAT_RGB8)
 	splash.save_png(OUT + "splash.png")
 	print("brand art written to ", ProjectSettings.globalize_path(OUT))
 
@@ -94,52 +98,71 @@ func _render_mascot() -> Image:
 func _render_icon(mascot: Texture2D, with_sky: bool) -> Image:
 	var viewport := _viewport(Vector2i(1024, 1024))
 	if with_sky:
-		var sky := TextureRect.new()
-		sky.texture = _gradient([SKY_TOP, SKY_MID, SKY_LOW], [0.0, 0.55, 1.0], false)
-		sky.size = Vector2(1024, 1024)
-		sky.stretch_mode = TextureRect.STRETCH_SCALE
-		viewport.add_child(sky)
-		var glow := TextureRect.new()
-		glow.texture = _gradient([Color(1.0, 0.95, 0.75, 0.75), Color(1.0, 0.95, 0.75, 0.0)], [0.0, 1.0], true)
-		glow.size = Vector2(900, 900)
-		glow.position = Vector2(140, 150)
-		glow.stretch_mode = TextureRect.STRETCH_SCALE
-		viewport.add_child(glow)
-	# The trail sweeps in from the top left and ends behind the kart.
+		_add_sky(viewport, Vector2(1024, 1024), SKY_TOP, Rect2(140, 150, 900, 900))
+	_add_trail(viewport, [Vector2(-160, 150), Vector2(180, 300), Vector2(470, 470)], 92.0, 104.0)
+	_add_kart(viewport, mascot, Rect2(34, 96, 980, 980))
+	return await _capture(viewport)
+
+
+## The splash: the same picture as the icon (sky, glow, trail, kart), tall enough to fill a
+## phone screen, with the words above the kart. Everything that matters sits in the middle, so
+## the picture can be cropped to cover any screen shape.
+func _render_splash(mascot: Texture2D) -> Image:
+	var viewport := _viewport(SPLASH_SIZE)
+	var size := Vector2(SPLASH_SIZE)
+	_add_sky(viewport, size, SPLASH_TOP, Rect2(-180, 900, 1600, 1600))
+	_add_trail(viewport, [Vector2(-200, 1120), Vector2(200, 1330), Vector2(560, 1560)], 112.0, 126.0)
+	_add_kart(viewport, mascot, Rect2(66, 1090, 1110, 1110))
+	var logo := GameLogo.new()
+	logo.mascot = mascot
+	logo.animated = false
+	logo.show_kart = false
+	logo.font_size = 262
+	viewport.add_child(logo)
+	logo.size = Vector2(size.x, logo.custom_minimum_size.y)
+	logo.position = Vector2(0, 640)
+	return await _capture(viewport)
+
+
+func _add_sky(viewport: SubViewport, size: Vector2, top: Color, glow_rect: Rect2) -> void:
+	var sky := TextureRect.new()
+	sky.texture = _gradient([top, SKY_MID, SKY_LOW], [0.0, 0.5, 1.0], false)
+	sky.size = size
+	sky.stretch_mode = TextureRect.STRETCH_SCALE
+	viewport.add_child(sky)
+	var glow := TextureRect.new()
+	glow.texture = _gradient([Color(1.0, 0.95, 0.75, 0.75), Color(1.0, 0.95, 0.75, 0.0)], [0.0, 1.0], true)
+	glow.size = glow_rect.size
+	glow.position = glow_rect.position
+	glow.stretch_mode = TextureRect.STRETCH_SCALE
+	viewport.add_child(glow)
+
+
+## Three bands in the gate colours sweeping through `path` and ending behind the kart.
+func _add_trail(viewport: SubViewport, path: Array, width: float, spacing: float) -> void:
 	for i in TRAIL.size():
 		var line := Line2D.new()
 		line.default_color = TRAIL[i]
-		line.width = 92.0
+		line.width = width
 		line.begin_cap_mode = Line2D.LINE_CAP_ROUND
 		line.end_cap_mode = Line2D.LINE_CAP_ROUND
-		var lane := (i - 1) * 104.0
-		line.points = PackedVector2Array([Vector2(-160, 150 + lane * 0.7), Vector2(180, 300 + lane * 0.85), Vector2(470, 470 + lane)])
+		var lane := (i - 1) * spacing
+		line.points = PackedVector2Array([path[0] + Vector2(0, lane * 0.7), path[1] + Vector2(0, lane * 0.85), path[2] + Vector2(0, lane)])
 		var taper := Curve.new()
 		taper.add_point(Vector2(0.0, 0.5))
 		taper.add_point(Vector2(1.0, 1.0))
 		line.width_curve = taper
 		viewport.add_child(line)
+
+
+func _add_kart(viewport: SubViewport, mascot: Texture2D, rect: Rect2) -> void:
 	var kart := TextureRect.new()
 	kart.texture = mascot
 	kart.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	kart.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	kart.size = Vector2(980, 980)
-	kart.position = Vector2(34, 96)
+	kart.size = rect.size
+	kart.position = rect.position
 	viewport.add_child(kart)
-	return await _capture(viewport)
-
-
-## The logo, large, on a clear background.
-func _render_splash(mascot: Texture2D) -> Image:
-	var viewport := _viewport(Vector2i(1024, 1024))
-	var logo := GameLogo.new()
-	logo.mascot = mascot
-	logo.animated = false
-	logo.font_size = 196
-	viewport.add_child(logo)
-	logo.size = Vector2(1024, logo.custom_minimum_size.y)
-	logo.position = Vector2(0, (1024 - logo.custom_minimum_size.y) * 0.5)
-	return await _capture(viewport)
 
 
 func _viewport(size: Vector2i) -> SubViewport:

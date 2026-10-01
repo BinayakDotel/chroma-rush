@@ -15,8 +15,8 @@ config/version="1.0.0"
 run/main_scene="res://main.tscn"
 config/quit_on_go_back=false
 config/features=PackedStringArray("4.7", "Forward Plus")
-boot_splash/bg_color=Color(0.208, 0.149, 0.788, 1)
-boot_splash/stretch_mode=1
+boot_splash/bg_color=Color(0.525, 0.314, 0.941, 1)
+boot_splash/stretch_mode=4
 boot_splash/image="res://icons/splash.png"
 config/icon="res://icons/icon_512.png"
 
