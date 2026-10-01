@@ -1,14 +1,14 @@
 extends UiScreen
-## Landing page: logo, shard counter, missions / upgrades / settings / shop / help, and the
-## world picker with its PLAY or unlock button. The 3D scene behind shows the current world's vehicle circling.
+## Landing page. Shards and settings sit quietly in the top corners; the logo is the hero; and
+## everything the player does next is in thumb reach at the bottom: MISSIONS, UPGRADES and SHOP
+## in a dock, then the world picker with its PLAY or unlock button. The 3D scene behind shows
+## the current world's vehicle circling.
 
-var _logo_letters: Array[Label] = []
 var _logo: VBoxContainer
-var _logo_top: HBoxContainer
+var _mark: GameLogo
 var _tagline: Label
-var _rush: Label
 var _column: VBoxContainer
-var _center: CenterContainer
+var _dock: HBoxContainer
 var _shards: HBoxContainer
 var _tokens: PanelContainer
 var _upgrade_dot: Control
@@ -21,22 +21,24 @@ var _play: Button
 var _unlock: Button
 var _pass: Button
 var _world := {}
-var _t := 0.0
 
 
 func build() -> void:
+	_top_shade()
 	var top := UiKit.hbox(10)
 	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	top.offset_left = 20
 	top.offset_right = -20
 	top.offset_top = 20
 	add_child(top)
-	var pill := UiKit.pill(Color(0.1, 0.05, 0.22, 0.75), Vector2(18, 6))
+	var pill := UiKit.pill(Color(0.1, 0.05, 0.22, 0.75), Vector2(18, 8))
+	pill.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_shards = UiKit.shard_amount(Profile.shards, 30)
 	pill.add_child(_shards)
 	top.add_child(pill)
 	# Banked revives from Phoenix gems, shown once there are any.
-	_tokens = UiKit.pill(Color(0.1, 0.05, 0.22, 0.75), Vector2(14, 6))
+	_tokens = UiKit.pill(Color(0.1, 0.05, 0.22, 0.75), Vector2(14, 8))
+	_tokens.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var token_row := UiKit.hbox(6)
 	token_row.add_child(UiIcon.make("gem", Powers.info(Powers.Kind.PHOENIX).color, Vector2(30, 30)))
 	var token_count := UiKit.text("0", 30, false, 900)
@@ -45,60 +47,42 @@ func build() -> void:
 	_tokens.add_child(token_row)
 	top.add_child(_tokens)
 	top.add_child(UiKit.spacer())
-	var missions := UiKit.icon_button("target", "primary", 64)
-	missions.pressed.connect(ui.open_missions)
-	top.add_child(missions)
-	var upgrades := UiKit.icon_button("upgrade", "gold", 64)
-	upgrades.pressed.connect(ui.open_upgrades)
-	top.add_child(upgrades)
-	# A dot on the button while some upgrade is affordable.
-	_upgrade_dot = UiIcon.make("circle", UiKit.STYLES.pink[0], Vector2(20, 20))
-	_upgrade_dot.position = Vector2(46, -2)
-	upgrades.add_child(_upgrade_dot)
-	var help := UiKit.icon_button("help", "light", 64)
-	help.pressed.connect(func() -> void: ui.open_howto(false))
-	top.add_child(help)
-	var shop := UiKit.icon_button("bag", "pink", 64)
-	shop.pressed.connect(ui.open_shop)
-	top.add_child(shop)
 	var settings := UiKit.icon_button("gear", "light", 64)
 	settings.pressed.connect(ui.open_settings)
 	top.add_child(settings)
 
-	_logo = UiKit.vbox(8)
-	_logo.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	_logo.offset_top = 100
+	_logo = UiKit.vbox(10)
 	_logo.alignment = BoxContainer.ALIGNMENT_CENTER
 	_logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_logo)
-	var words := UiKit.vbox(-22)
-	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_logo.add_child(words)
-	_logo_top = UiKit.hbox(2)
-	_logo_top.alignment = BoxContainer.ALIGNMENT_CENTER
-	words.add_child(_logo_top)
-	var word := "CHROMA"
-	for i in word.length():
-		var letter := UiKit.title(word[i], 100, Defs.COLORS[i % 3].lightened(0.1))
-		_logo_top.add_child(letter)
-		_logo_letters.append(letter)
-	_rush = UiKit.centered(UiKit.title("RUSH", 100))
-	words.add_child(_rush)
+	_mark = GameLogo.new()
+	_mark.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_logo.add_child(_mark)
 	_tagline = UiKit.centered(UiKit.text("Match the gate. Dodge the rest.", 26, false, 900))
 	_logo.add_child(_tagline)
 
-	# World picker card, centred along the bottom edge.
-	_column = UiKit.vbox(0)
+	# Dock and world picker, centred along the bottom edge.
+	_column = UiKit.vbox(14)
 	UiKit.full_rect(_column)
 	_column.offset_bottom = -28
 	_column.alignment = BoxContainer.ALIGNMENT_END
 	_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_column)
-	_center = CenterContainer.new()
-	_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_column.add_child(_center)
+	_dock = UiKit.hbox(12)
+	_dock.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_column.add_child(_dock)
+	_dock_button("MISSIONS", "sky", "target", ui.open_missions)
+	var upgrades := _dock_button("UPGRADES", "gold", "upgrade", ui.open_upgrades)
+	# A dot on the button while some upgrade is affordable.
+	_upgrade_dot = UiIcon.make("circle", UiKit.STYLES.pink[0], Vector2(22, 22))
+	_upgrade_dot.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	_upgrade_dot.position += Vector2(-16, -6)
+	upgrades.add_child(_upgrade_dot)
+	_dock_button("SHOP", "pink", "bag", ui.open_shop)
+
 	_panel = UiKit.card(24)
-	_center.add_child(_panel)
+	_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_column.add_child(_panel)
 	var content := UiKit.vbox(14)
 	_panel.add_child(content)
 	var picker := UiKit.hbox(10)
@@ -109,7 +93,8 @@ func build() -> void:
 	var info := UiKit.vbox(2)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	picker.add_child(info)
-	_world_name = UiKit.centered(UiKit.title("", 50))
+	_world_name = UiKit.centered(UiKit.title("", 50, UiKit.INK, Color(1, 1, 1, 0)))
+	_world_name.label_settings.shadow_color = Color(0, 0, 0, 0)
 	info.add_child(_world_name)
 	_character = UiKit.centered(UiKit.text("", 21, true, 700))
 	_character.label_settings.font_color = UiKit.INK_SOFT
@@ -124,7 +109,7 @@ func build() -> void:
 	_dots.alignment = BoxContainer.ALIGNMENT_CENTER
 	content.add_child(_dots)
 
-	_play = UiKit.button("PLAY", "primary", Vector2(0, 100), 52, "play")
+	_play = UiKit.button("PLAY", "primary", Vector2(0, 104), 54, "play")
 	_play.pressed.connect(ui.play_requested.emit)
 	content.add_child(_play)
 	_unlock = UiKit.button("UNLOCK", "gold", Vector2(0, 88), 38, "lock")
@@ -140,6 +125,34 @@ func build() -> void:
 	Profile.worlds_changed.connect(_refresh)
 	Profile.entitlements_changed.connect(_refresh)
 	Store.products_updated.connect(_refresh)
+
+
+## One of the three dock buttons: an icon and a word, all the same width.
+func _dock_button(label: String, style: String, icon: String, action: Callable) -> Button:
+	var button := UiKit.button(label, style, Vector2(0, 72), 22, icon)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.pressed.connect(action)
+	_dock.add_child(button)
+	return button
+
+
+## A soft dark wash down from the top edge, so the white logo reads against any sky.
+func _top_shade() -> void:
+	var gradient := Gradient.new()
+	gradient.set_color(0, Color(0.1, 0.05, 0.3, 0.5))
+	gradient.set_color(1, Color(0.1, 0.05, 0.3, 0.0))
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.fill_from = Vector2(0.5, 0.0)
+	texture.fill_to = Vector2(0.5, 1.0)
+	var shade := TextureRect.new()
+	shade.texture = texture
+	shade.stretch_mode = TextureRect.STRETCH_SCALE
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shade.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	shade.offset_top = -200
+	shade.offset_bottom = 560
+	add_child(shade)
 
 
 func show_world(world: Dictionary, index: int, count: int) -> void:
@@ -183,14 +196,6 @@ func _refresh() -> void:
 		UiKit.set_text(_pass, "ALL WORLDS  %s" % Store.price("world_pass"))
 
 
-func _process(delta: float) -> void:
-	if not visible:
-		return
-	_t += delta
-	for i in _logo_letters.size():
-		_logo_letters[i].position.y = sin(_t * 3.0 + i * 0.6) * 6.0
-
-
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible or ui.has_overlay():
 		return
@@ -212,28 +217,27 @@ func handle_back() -> bool:
 	return false
 
 
-## Portrait: logo on top, world card along the bottom, vehicle in between. Landscape: logo and
-## card stacked on the left, the vehicle framed on the right (see Game._menu_tick).
+## Portrait: logo on top, dock and world card along the bottom, vehicle in between. Landscape:
+## logo, dock and card stacked on the left, the vehicle framed on the right (see Game._menu_tick).
 func layout(portrait: bool) -> void:
 	if not _panel:
 		return
-	var logo_size := 108 if portrait else 80
-	for letter in _logo_letters:
-		letter.label_settings.font_size = logo_size
-		letter.label_settings.outline_size = logo_size / 7
-	_rush.label_settings.font_size = logo_size
-	_rush.label_settings.outline_size = logo_size / 7
+	_mark.font_size = 112 if portrait else 78
+	_tagline.visible = portrait
+	var width := card_width(true) if portrait else 520.0
+	_panel.custom_minimum_size = Vector2(width, 0)
+	_dock.custom_minimum_size = Vector2(width, 0)
 	if portrait:
-		_panel.custom_minimum_size = Vector2(card_width(true), 0)
 		_logo.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-		_logo.offset_top = 110
+		_logo.offset_top = 120
 		_column.offset_left = 0
-		_center.size_flags_horizontal = Control.SIZE_FILL
+		_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		_dock.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	else:
-		_panel.custom_minimum_size = Vector2(520, 0)
 		_logo.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 		_logo.offset_left = 32
-		_logo.offset_top = 70
+		_logo.offset_top = 96
 		_logo.custom_minimum_size.x = 520
 		_column.offset_left = 32
-		_center.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		_dock.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
