@@ -145,7 +145,7 @@ func run(host: Node) -> void:
 	harness.get_tree().quit(1 if failures > 0 else 0)
 
 
-## Power gems and the rescue pickup, applied directly in a live run.
+## Power gems and the fuel drop, applied directly in a live run.
 func _power_gem_checks() -> void:
 	var track: Track = game.get("track")
 	game.call("_apply_power", Powers.Kind.SHIELD)
@@ -159,13 +159,19 @@ func _power_gem_checks() -> void:
 	game.set("fuel", 0.2)
 	game.call("_apply_power", Powers.Kind.FULL_TANK)
 	_check("a full tank gem fills the tank", is_equal_approx(float(game.get("fuel")), 1.0))
-	game.set("fuel", 0.2)
+	game.set("fuel", 0.4)
+	await _frames(3)
+	_check("a low tank alone does not bring a fuel drop", int(game.get("run_stats").drops) == 0)
+	game.set("fuel", 0.05)
 	await _frames(3)
 	var distance: float = game.get("distance")
 	var speed: float = game.get("speed")
 	var ahead := track.fuels.filter(func(f: Dictionary) -> bool:
-		return not f.done and f.s > distance and f.s < distance + speed * Pacing.RESCUE_LOOKAHEAD)
-	_check("running low puts a fuel pickup within reach", not ahead.is_empty())
+		return not f.done and f.s > distance and f.s < distance + speed * 7.0)
+	_check("a nearly empty tank has fuel within reach", not ahead.is_empty())
+	game.set("fuel", 0.05)
+	await _frames(3)
+	_check("fuel drops do not come one after another", int(game.get("run_stats").drops) <= 1)
 	game.set("fuel", 1.0)
 	var placed := track.place_power(Powers.Kind.MAGNET, distance + 40.0, distance + 120.0, 1)
 	_check("a power gem can be placed on the road ahead", placed and not track.powers.is_empty())

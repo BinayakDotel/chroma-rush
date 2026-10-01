@@ -39,24 +39,39 @@ const ENDGAME_SCALE := 6000.0
 const ENDGAME_REACT := 0.62
 const ENDGAME_ACTION := 0.22
 const ENDGAME_ROW_TIME := 1.15
-const ENDGAME_TANK_TIME := 20.0
-const ENDGAME_FUEL_SCARCITY := 1.25
+const ENDGAME_TANK_TIME := 24.0
+## Fuel pickups get rarer through the endgame and keep getting rarer after it (this much more
+## spacing per ENDGAME_SCALE metres), so in the end no tank is big enough.
+const ENDGAME_FUEL_SCARCITY := 0.45
+const MAX_FUEL_SCARCITY := 2.5
 ## Generation never needs more than this between rows (metres).
 const MAX_GAP := 160.0
 
 ## Fuel drains with time, not distance, so going faster doesn't secretly empty the tank
 ## faster. A full tank lasts TANK_TIME seconds at difficulty 0 and 1.
-const TANK_TIME := Vector2(32.0, 24.0)
+##
+## The economy is a few big pickups, not a stream of small ones. Each is worth nearly half a
+## tank, and every one is fair to collect: it sits in a lane that is open in the next row, far
+## enough along for the lane changes (see fuel_lead). Because they can all be caught, the
+## pressure comes from how many may be missed: half of them in the first kilometre, a third
+## by 2 km, one in six by 5 km, and none from about 8 km, after which every tank runs down.
+## The Fuel Tank upgrade moves each of those marks out by a fifth.
+const TANK_TIME := Vector2(40.0, 30.0)
 ## Fuel added by a pickup (fraction of the tank).
 const FUEL_PICKUP := 0.4
-## Seconds of driving between regular fuel pickups at difficulty 0 and 1 (randomised +-20%).
-## With the breather pickup too, catching about two in three keeps the tank level.
-const FUEL_TIME := Vector2(8.5, 7.0)
-## Below this level, if no pickup is coming up soon, the game places a rescue pickup ahead.
-const RESCUE_BELOW := 0.35
-const RESCUE_LOOKAHEAD := 5.0  # seconds: a pickup this close counts as "coming up"
-const RESCUE_AHEAD := Vector2(2.5, 4.5)  # seconds ahead to place the rescue pickup
-const RESCUE_COOLDOWN := 6.0
+## Seconds of driving between fuel pickups at difficulty 0 and 1 (randomised +-15%). The one
+## nearest each milestone moves into that milestone's breather.
+const FUEL_TIME := Vector2(9.0, 12.8)
+const FUEL_JITTER := 0.15
+## Seconds a player needs after everything else to settle before the row behind a pickup.
+const FUEL_SETTLE := 0.25
+## Last resort, and rare: with the tank nearly empty and no pickup reachable before it runs
+## dry, a fuel drop lands a few seconds ahead. It holds less than a pickup, lands in any open
+## lane (not the player's), and after one there is a long wait before another can come.
+const DROP_BELOW := 0.14
+const DROP_AHEAD := Vector2(3.0, 4.6)  # seconds ahead that the drop lands
+const DROP_FUEL := 0.3
+const DROP_COOLDOWN := 45.0
 
 ## Row patterns. Cells: 0..2 colour gates, Defs.SOLID block, Defs.LOW hurdle, Defs.EMPTY.
 ## "from": first metre the pattern can appear (teach one idea at a time); "weight": how common
@@ -108,23 +123,38 @@ static func wave_spacing(s: float) -> float:
 	return lerpf(BUILD_SPACING.x, BUILD_SPACING.y, (phase - BREATHER) / (WAVE - BREATHER))
 
 
-## Metres from the previous row (at `s`) to the next one, which needs `actions` actions.
-static func row_gap(s: float, actions: int) -> float:
-	var e := endgame(s)
-	var row_time := lerpf(ROW_TIME.x, lerpf(ROW_TIME.y, ENDGAME_ROW_TIME, e), difficulty(s))
+## Seconds to read a row, and seconds per action (lane change, colour switch, jump), at `s`.
+static func react_time(s: float) -> float:
+	return lerpf(REACT_TIME, ENDGAME_REACT, endgame(s))
+
+
+static func action_time(s: float) -> float:
+	return lerpf(ACTION_TIME, ENDGAME_ACTION, endgame(s))
+
+
+## Metres from the previous row (at `s`) to the next one, which needs `actions` actions, and
+## never less than `min_seconds` of driving.
+static func row_gap(s: float, actions: int, min_seconds := 0.0) -> float:
+	var row_time := lerpf(ROW_TIME.x, lerpf(ROW_TIME.y, ENDGAME_ROW_TIME, endgame(s)), difficulty(s))
 	var seconds := row_time * wave_spacing(s)
-	seconds = maxf(seconds, lerpf(REACT_TIME, ENDGAME_REACT, e) + lerpf(ACTION_TIME, ENDGAME_ACTION, e) * actions)
-	return minf(seconds * speed_at(s), MAX_GAP)
+	seconds = maxf(seconds, react_time(s) + action_time(s) * actions)
+	return minf(maxf(seconds, min_seconds) * speed_at(s), MAX_GAP)
 
 
 static func tank_time(s: float) -> float:
 	return lerpf(lerpf(TANK_TIME.x, TANK_TIME.y, difficulty(s)), ENDGAME_TANK_TIME, endgame(s))
 
 
-## Metres to the next regular fuel pickup, given a random roll in -1..1.
+## Metres to the next fuel pickup, given a random roll in -1..1.
 static func fuel_spacing(s: float, roll: float) -> float:
-	var scarcity := lerpf(1.0, ENDGAME_FUEL_SCARCITY, endgame(s))
-	return lerpf(FUEL_TIME.x, FUEL_TIME.y, difficulty(s)) * scarcity * (1.0 + 0.2 * roll) * speed_at(s)
+	var scarcity := minf(1.0 + ENDGAME_FUEL_SCARCITY * maxf(s - ENDGAME_FROM, 0.0) / ENDGAME_SCALE, MAX_FUEL_SCARCITY)
+	return lerpf(FUEL_TIME.x, FUEL_TIME.y, difficulty(s)) * scarcity * (1.0 + FUEL_JITTER * roll) * speed_at(s)
+
+
+## Seconds after a row before a fuel pickup `lane_changes` lanes away can fairly be reached:
+## time to see it, then one action per lane.
+static func fuel_lead(s: float, lane_changes: int) -> float:
+	return react_time(s) + action_time(s) * lane_changes
 
 
 ## Pattern weight at a distance: 0 before it is introduced, and only calm rows in a breather.
@@ -146,6 +176,29 @@ static func row_options(cells: Array) -> Array[Dictionary]:
 		var gate := cell >= 0 and cell <= 2
 		options.append({"lane": lane, "color": cell if gate else -1, "jump": cell == Defs.LOW})
 	return options
+
+
+## What it takes to collect a pickup in `lane` between `prev` and `next` and then go through
+## `next` in that same lane, from the worst-placed way through `prev`:
+## {lane_changes (to reach the pickup), actions (those plus the colour switch or jump after)}.
+static func actions_via(prev: Array[Dictionary], next: Array[Dictionary], lane: int) -> Dictionary:
+	var through := {}
+	for n in next:
+		if int(n.lane) == lane:
+			through = n
+	var lane_changes := 0
+	var actions := 0
+	for p in prev:
+		var changes := absi(lane - int(p.lane))
+		var cost := changes
+		if not through.is_empty():
+			if int(through.color) >= 0 and int(through.color) != int(p.color):
+				cost += 1
+			if through.jump:
+				cost += 1
+		lane_changes = maxi(lane_changes, changes)
+		actions = maxi(actions, cost)
+	return {"lane_changes": lane_changes, "actions": actions}
 
 
 ## Actions needed to get through `next` after passing `prev`, assuming the player came
