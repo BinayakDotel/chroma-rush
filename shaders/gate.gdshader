@@ -80,7 +80,7 @@ void fragment() {
 
 	// Pass-through burst: a white flash, then a ring expanding outwards as the panel dissolves.
 	float ring_r = burst * 2.2;
-	float ring = (1.0 - smoothstep(0.0, 0.18, abs(length(p) - ring_r))) * (1.0 - burst);
+	float ring = (1.0 - smoothstep(0.0, 0.18, abs(length(p) - ring_r))) * (1.0 - burst) * step(0.001, burst);
 	col = mix(col, vec3(1.3), clamp((1.0 - burst * 3.0), 0.0, 1.0) * step(0.001, burst));
 	col = mix(col, light * 1.3, ring);
 	float dissolve = 1.0 - smoothstep(ring_r - 0.25, ring_r, length(p)) * step(0.001, burst);

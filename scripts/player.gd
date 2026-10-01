@@ -7,7 +7,8 @@ extends Node3D
 ## Everything the vehicle does is driven by springs, so nothing snaps: it glides to a new lane,
 ## leans into the move and settles; it squashes on landing and pops when the colour changes.
 ## The wheels stay flat on the road while the body above them leans and bounces (see Vehicles
-## for the parts). A soft shadow and a glow in the current colour sit on the road underneath.
+## for the parts). A soft shadow and a glow in the current colour sit on the road underneath,
+## and pickups and gates throw a short burst of sparkles around the vehicle.
 
 signal landed
 
@@ -24,6 +25,9 @@ const AIR_TIME := 2.0 * JUMP_SPEED / GRAVITY
 const ROLL_PER_SPEED := 0.03
 const MAX_ROLL := 0.3
 const YAW_PER_SPEED := 0.014
+## Sparkle emitters kept ready: small bursts (orbs, gates) and big ones (fuel, power gems).
+const SPARKLES_SMALL := 5
+const SPARKLES_BIG := 2
 const WOBBLE_STIFFNESS := 90.0
 const WOBBLE_DAMPING := 9.0
 
@@ -77,6 +81,9 @@ var _bubble := MeshInstance3D.new()
 var _shadow := MeshInstance3D.new()
 var _underglow := MeshInstance3D.new()
 var _ghosted := false
+var _sparkles_small: Array[GPUParticles3D] = []
+var _sparkles_big: Array[GPUParticles3D] = []
+var _sparkle_turn := 0
 
 
 func _ready() -> void:
@@ -84,6 +91,7 @@ func _ready() -> void:
 	_setup_ground()
 	_setup_bubble()
 	_setup_trail()
+	_setup_sparkles()
 	set_model("kart")
 	reset()
 
@@ -272,6 +280,18 @@ func set_color(i: int) -> void:
 	_punch.velocity += 5.5
 
 
+## A burst of sparkles around the vehicle in `color`: small for orbs and gates, `big` for fuel,
+## power gems and smashes. Emitters are reused in turn, so nothing is created while playing.
+func sparkle(color: Color, big := false) -> void:
+	var pool := _sparkles_big if big else _sparkles_small
+	_sparkle_turn += 1
+	var emitter := pool[_sparkle_turn % pool.size()]
+	emitter.position = Vector3(lateral, SIZE * 0.5 + height + 0.3, -0.4)
+	(emitter.process_material as ParticleProcessMaterial).color = Color(color.r, color.g, color.b).lerp(Color.WHITE, 0.25)
+	emitter.restart()
+	emitter.emitting = true
+
+
 ## Keeps world-space effects in place when the track shifts the world origin.
 func shift_origin(offset: Vector3) -> void:
 	for piece in _debris:
@@ -435,6 +455,58 @@ func _setup_trail() -> void:
 	_trail.visibility_aabb = AABB(Vector3(-4, -2, -2), Vector3(8, 6, 12))
 	_body.add_child(_trail)
 	set_trail_style({"color": Color(0.8, 0.7, 0.5, 0.8), "size": 0.15, "gravity": -3.0, "glow": false})
+
+
+## One-shot bursts of soft dots that fly up and out, then fall and fade. They move with the
+## vehicle along the road (local coordinates), so they stay in view at any speed.
+func _setup_sparkles() -> void:
+	var dot := QuadMesh.new()
+	dot.size = Vector2.ONE
+	var material := StandardMaterial3D.new()
+	material.vertex_color_use_as_albedo = true
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	material.billboard_keep_scale = true
+	material.albedo_texture = Look.soft_dot()
+	material.albedo_color = Color(1.5, 1.5, 1.5)
+	dot.material = material
+	var fade := Gradient.new()
+	fade.set_color(0, Color(1, 1, 1, 1))
+	fade.set_color(1, Color(1, 1, 1, 0))
+	var ramp := GradientTexture1D.new()
+	ramp.gradient = fade
+	var shrink := Curve.new()
+	shrink.add_point(Vector2(0, 1))
+	shrink.add_point(Vector2(1, 0.3))
+	var shrink_tex := CurveTexture.new()
+	shrink_tex.curve = shrink
+	for big: bool in [false, true]:
+		for i in (SPARKLES_BIG if big else SPARKLES_SMALL):
+			var process := ParticleProcessMaterial.new()
+			process.direction = Vector3(0, 1, -0.3)
+			process.spread = 70.0
+			process.initial_velocity_min = 3.5 if big else 2.5
+			process.initial_velocity_max = 8.0 if big else 5.5
+			process.gravity = Vector3(0, -12.0, 0)
+			process.damping_min = 1.5
+			process.damping_max = 3.0
+			process.scale_min = 0.18 if big else 0.13
+			process.scale_max = 0.4 if big else 0.28
+			process.scale_curve = shrink_tex
+			process.color_ramp = ramp
+			var emitter := GPUParticles3D.new()
+			emitter.process_material = process
+			emitter.draw_pass_1 = dot
+			emitter.amount = 22 if big else 9
+			emitter.lifetime = 0.7 if big else 0.45
+			emitter.one_shot = true
+			emitter.explosiveness = 1.0
+			emitter.emitting = false
+			emitter.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			emitter.visibility_aabb = AABB(Vector3(-5, -2, -6), Vector3(10, 8, 12))
+			add_child(emitter)
+			(_sparkles_big if big else _sparkles_small).append(emitter)
 
 
 func _clear_debris() -> void:
