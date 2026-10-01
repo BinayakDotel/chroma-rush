@@ -27,6 +27,8 @@ var color_idx := 0
 var rainbow := false
 ## Blinks the vehicle during post-Prism or post-revive invulnerability.
 var ghost := false
+## Shows a bubble around the vehicle while a Shield gem is held.
+var shield := false
 var display_color := Color.WHITE
 ## Forward speed in m/s, used for wheels, flames and the trail.
 var speed := 0.0
@@ -57,6 +59,7 @@ var _detail := StandardMaterial3D.new()
 var _glow := StandardMaterial3D.new()
 var _glass := StandardMaterial3D.new()
 var _debris: Array[Dictionary] = []
+var _bubble := MeshInstance3D.new()
 
 
 func _ready() -> void:
@@ -76,6 +79,7 @@ func _ready() -> void:
 	_glass.rim = 0.8
 	_glass.rim_tint = 0.3
 	add_child(_body)
+	_setup_bubble()
 	_setup_trail()
 	set_model("kart")
 	reset()
@@ -178,6 +182,9 @@ func tick(delta: float) -> void:
 	_body.rotation = Vector3(flip, lean * -0.25, -lean * 0.5)
 	_body.scale = _body.scale.lerp(Vector3.ONE, 1.0 - exp(-10.0 * delta))
 	_body.visible = not ghost or fmod(_t * 12.0, 1.0) < 0.6
+	_bubble.visible = shield and _body.visible
+	if _bubble.visible:
+		_bubble.scale = Vector3.ONE * (1.0 + 0.04 * sin(_t * 6.0))
 
 	for wheel: Node3D in _wheels:
 		wheel.rotation.x -= speed * delta / 0.28
@@ -297,6 +304,23 @@ func _update_wobblers(delta: float, lateral_accel: float, vertical_accel: float)
 		w.velocity = velocity
 		var rest: Vector3 = w.rest
 		(w.node as Node3D).rotation = rest + Vector3(angle.x, 0.0, angle.y)
+
+
+## A soft glassy bubble: see-through in the middle, glowing at the rim.
+func _setup_bubble() -> void:
+	var sphere := SphereMesh.new()
+	sphere.radius = 1.25
+	sphere.height = 2.0
+	sphere.radial_segments = 24
+	sphere.rings = 12
+	var material := ShaderMaterial.new()
+	material.shader = preload("res://shaders/bubble.gdshader")
+	sphere.material = material
+	_bubble.mesh = sphere
+	_bubble.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_bubble.position = Vector3(0.0, 0.35, 0.0)
+	_bubble.visible = false
+	_body.add_child(_bubble)
 
 
 func _setup_trail() -> void:

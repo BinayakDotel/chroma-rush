@@ -49,6 +49,9 @@ var meter := 0.0
 var prism_left := 0.0
 var grace_left := 0.0
 var fuel := 1.0
+## Power gem effects (see Powers): a held shield, and seconds of magnet left.
+var shield := false
+var magnet_left := 0.0
 var world_index := 0
 ## Counters for this run, for tuning and (later) missions.
 var run_stats := {}
@@ -67,6 +70,7 @@ var _swiped := false
 var _sun_dir := Vector3(0.0, 0.5, -1.0)
 var _coast := -1.0  # seconds spent rolling to a stop on an empty tank; -1 while fuelled
 var _rescue_cooldown := 0.0
+var _next_power_s := Powers.FIRST_AT
 var _low_fuel_warned := false
 var _revive_used := false
 var _recorded := true
@@ -103,6 +107,7 @@ func _ready() -> void:
 	ui.color_pressed.connect(_set_color)
 	ui.prism_pressed.connect(_activate_prism)
 	ui.revive_requested.connect(func() -> void: Ads.show_rewarded(Ads.REVIVE))
+	ui.revive_token_requested.connect(_revive_with_token)
 	ui.double_shards_requested.connect(func() -> void: Ads.show_rewarded(Ads.DOUBLE_SHARDS))
 	ui.quit_requested.connect(_quit)
 	world_index = Themes.index_of(Profile.selected_world)
@@ -182,7 +187,10 @@ func _new_run() -> void:
 	fuel = 1.0
 	_coast = -1.0
 	_rescue_cooldown = 0.0
-	run_stats = {"fuel_taken": 0, "fuel_missed": 0, "rescues": 0}
+	run_stats = {"fuel_taken": 0, "fuel_missed": 0, "rescues": 0, "powers": 0, "bonus_shards": 0}
+	shield = false
+	magnet_left = 0.0
+	_next_power_s = Powers.FIRST_AT
 	_run_time = 0.0
 	_cam_lateral = 0.0
 	_cam_lateral_velocity = 0.0
@@ -379,9 +387,13 @@ func _play_tick(delta: float) -> void:
 	player.speed = speed
 	player.tick(delta)
 	_tick_prism(delta)
+	magnet_left = maxf(magnet_left - delta, 0.0)
+	player.shield = shield
 	_check_orbs()
 	_check_fuel()
+	_check_powers()
 	_maybe_rescue(delta)
+	_maybe_place_power()
 	_check_rows()
 	if state != State.PLAYING:
 		return
@@ -402,6 +414,7 @@ func _play_tick(delta: float) -> void:
 	hud.set_distance(travelled, speed)
 	hud.set_meter(meter, meter >= 1.0, prism_left > 0.0)
 	hud.set_fuel(fuel)
+	hud.set_powers(shield, magnet_left / Powers.MAGNET_TIME)
 	hud.set_speed_fx(remap(speed, 26.0, Pacing.MAX_SPEED * PRISM_SPEED_BOOST, 0.0, 1.0))
 
 
@@ -541,12 +554,17 @@ func _check_orbs() -> void:
 		if orb.s > distance + 0.5:
 			break
 		orb.done = true
-		if player.current_lane() != orb.lane:
-			track.drop_orb(orb)
+		# Magnet and Overdrive pull orbs in from every lane.
+		var pulled := magnet_left > 0.0 or prism_left > 0.0
+		if player.current_lane() != orb.lane and not pulled:
+			track.drop(orb)
 			continue
 		track.collect_orb(orb)
-		if orb.color == player.color_idx or prism_left > 0.0:
+		if orb.color == player.color_idx or pulled:
 			orbs_collected += 1
+			if prism_left > 0.0:
+				# Overdrive is the best time to collect: every orb is worth double shards.
+				run_stats.bonus_shards += Economy.SHARDS_PER_ORB
 			score += 20 * _multiplier()
 			_add_meter(0.05)
 			audio.play("coin", 1.0 + randf() * 0.1, -6.0)
@@ -581,6 +599,7 @@ func _check_fuel() -> void:
 		pickup.done = true
 		if player.current_lane() != pickup.lane:
 			run_stats.fuel_missed += 1
+			track.drop(pickup)
 			continue
 		run_stats.fuel_taken += 1
 		track.collect_fuel(pickup)
@@ -612,6 +631,84 @@ func _maybe_rescue(delta: float) -> void:
 	if track.place_fuel(near, far, player.lane):
 		run_stats.rescues += 1
 		_rescue_cooldown = Pacing.RESCUE_COOLDOWN
+
+
+func _check_powers() -> void:
+	for power in track.powers:
+		if power.done:
+			continue
+		if power.s > distance + 0.5:
+			break
+		power.done = true
+		if player.current_lane() != power.lane:
+			track.drop(power)
+			continue
+		track.collect_power(power)
+		_apply_power(power.kind)
+
+
+func _apply_power(kind: Powers.Kind) -> void:
+	var info := Powers.info(kind)
+	run_stats.powers += 1
+	var text: String = info.name + "!"
+	match kind:
+		Powers.Kind.SHIELD:
+			shield = true
+		Powers.Kind.MAGNET:
+			magnet_left = Powers.MAGNET_TIME
+		Powers.Kind.FULL_TANK:
+			fuel = 1.0
+			_low_fuel_warned = false
+			_coast = -1.0
+		Powers.Kind.PRISM:
+			if prism_left > 0.0:
+				prism_left = PRISM_DURATION
+			else:
+				_add_meter(1.0)
+		Powers.Kind.PHOENIX:
+			text = "PHOENIX GEM!  +1 REVIVE" if Profile.add_revive_token() else "PHOENIX GEM!"
+	hud.hint(text, info.color, 1.6)
+	audio.play("unlock", 1.2)
+	cam.shake(0.2)
+	Settings.vibrate(0.4)
+
+
+## Every so often, a power gem a few seconds ahead. Which kind depends on what would help:
+## fuel when low, no Prism Charge with the meter nearly full, no second shield.
+func _maybe_place_power() -> void:
+	if distance + speed * Powers.LEAD_TIME.x < _next_power_s:
+		return
+	var from := distance + speed * Powers.LEAD_TIME.x
+	var to := distance + speed * Powers.LEAD_TIME.y
+	if track.place_power(_pick_power(), from, to, player.lane):
+		_next_power_s = to + randf_range(Powers.EVERY.x, Powers.EVERY.y)
+	else:
+		_next_power_s += 20.0
+
+
+func _pick_power() -> Powers.Kind:
+	var weights := {}
+	for kind: Powers.Kind in Powers.INFO:
+		weights[kind] = float(Powers.info(kind).weight)
+	if shield:
+		weights[Powers.Kind.SHIELD] = 0.0
+	if fuel < 0.5:
+		weights[Powers.Kind.FULL_TANK] *= 3.0
+	elif fuel > 0.8:
+		weights[Powers.Kind.FULL_TANK] *= 0.3
+	if meter > 0.6 or prism_left > 0.0:
+		weights[Powers.Kind.PRISM] = 0.0
+	if distance < Powers.PHOENIX_FROM or Profile.revive_tokens >= Profile.MAX_REVIVE_TOKENS:
+		weights[Powers.Kind.PHOENIX] = 0.0
+	var total := 0.0
+	for w: float in weights.values():
+		total += w
+	var roll := randf() * total
+	for kind: Powers.Kind in weights:
+		roll -= weights[kind]
+		if roll <= 0.0:
+			return kind
+	return Powers.Kind.MAGNET
 
 
 func _add_meter(amount: float) -> void:
@@ -656,6 +753,17 @@ func _crash(row: Dictionary) -> void:
 	if dev_god:
 		track.smash_cell(row, player.current_lane())
 		return
+	if shield:
+		# The shield takes the hit: smash through and carry on, with a moment's grace.
+		shield = false
+		player.shield = false
+		track.smash_cell(row, player.current_lane())
+		grace_left = GRACE_DURATION
+		hud.hint("SHIELD SAVED YOU!", Powers.info(Powers.Kind.SHIELD).color)
+		audio.play("smash")
+		cam.shake(0.6)
+		Settings.vibrate(0.7)
+		return
 	_crash_row = row
 	distance = minf(distance, row.s - 0.9)
 	player.transform = track.frame_at(distance)
@@ -688,10 +796,11 @@ func _end_run(title: String, explode: bool) -> void:
 
 func _show_results() -> void:
 	var travelled := int(distance - START_S)
-	_run_shards = Economy.run_shards(orbs_collected, travelled) * Profile.shard_multiplier()
+	_run_shards = (Economy.run_shards(orbs_collected, travelled) + int(run_stats.bonus_shards)) * Profile.shard_multiplier()
 	var world_id: String = _themes[world_index].id
 	var final := int(score)
 	var can_revive := not _revive_used and Ads.rewarded_ready()
+	var can_token := not _revive_used and Profile.revive_tokens > 0
 	ui.show_results({
 		"title": _end_title,
 		"score": final,
@@ -702,10 +811,11 @@ func _show_results() -> void:
 		"combo": best_combo,
 		"shards": _run_shards,
 		"can_revive": can_revive,
+		"revive_tokens": Profile.revive_tokens if can_token else 0,
 		"can_double": _run_shards > 0 and Ads.rewarded_ready(),
 	})
 	# Without a second chance on offer, the run is over: save it straight away.
-	if not can_revive:
+	if not can_revive and not can_token:
 		_record_run()
 
 
@@ -735,6 +845,12 @@ func _on_rewarded_finished(placement: StringName, granted: bool) -> void:
 				Profile.add_shards(bonus)
 			ui.results.call("show_doubled", _run_shards)
 			audio.play("unlock")
+
+
+## A banked Phoenix gem buys the second chance instead of an ad.
+func _revive_with_token() -> void:
+	if state == State.DEAD and not _revive_used and Profile.use_revive_token():
+		_revive()
 
 
 ## Second chance: back on the road with a short shield and some fuel.

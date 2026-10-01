@@ -33,6 +33,8 @@ func run(host: Node) -> void:
 	_check("tutorial is remembered", Profile.tutorial_done)
 	_check("HUD is shown in a run", ui.hud.visible)
 
+	await _power_gem_checks()
+
 	ui.pause_requested.emit()
 	await _frames(2)
 	_check("pause freezes the tree", _state() == "PAUSED" and harness.get_tree().paused)
@@ -66,6 +68,18 @@ func run(host: Node) -> void:
 	await _frames(5)
 	_check("retry starts a fresh run", _state() == "PLAYING" and float(game.get("score")) < 50.0)
 	_check("retry did not double-record the run", Profile.lifetime_runs == runs_before + 1)
+
+	Profile.revive_tokens = 0
+	_check("a Phoenix gem banks a revive", Profile.add_revive_token() and Profile.revive_tokens == 1)
+	await _seconds(0.5)
+	game.call("_end_run", "CRASHED!", true)
+	await _seconds(2.5)
+	_check("a banked revive is offered on the results", bool(ui.results.get("_token").visible))
+	ui.revive_token_requested.emit()
+	await _seconds(0.5)
+	_check("a banked revive puts the player back in the run without an ad",
+		_state() == "PLAYING" and Profile.revive_tokens == 0)
+	_check("a revived run is still not recorded", Profile.lifetime_runs == runs_before + 1)
 
 	ui.pause_requested.emit()
 	await _frames(2)
@@ -117,6 +131,32 @@ func run(host: Node) -> void:
 
 	print("[flow] %s (%d failure%s)" % ["PASSED" if failures == 0 else "FAILED", failures, "" if failures == 1 else "s"])
 	harness.get_tree().quit(1 if failures > 0 else 0)
+
+
+## Power gems and the rescue pickup, applied directly in a live run.
+func _power_gem_checks() -> void:
+	var track: Track = game.get("track")
+	game.call("_apply_power", Powers.Kind.SHIELD)
+	_check("a shield gem gives a shield", bool(game.get("shield")))
+	var row := track.next_row(float(game.get("distance")))
+	game.call("_crash", row)
+	await _frames(2)
+	_check("the shield takes a crash and the run goes on", _state() == "PLAYING" and not bool(game.get("shield")))
+	game.call("_apply_power", Powers.Kind.MAGNET)
+	_check("a magnet gem starts the magnet", float(game.get("magnet_left")) > 0.0)
+	game.set("fuel", 0.2)
+	game.call("_apply_power", Powers.Kind.FULL_TANK)
+	_check("a full tank gem fills the tank", is_equal_approx(float(game.get("fuel")), 1.0))
+	game.set("fuel", 0.2)
+	await _frames(3)
+	var distance: float = game.get("distance")
+	var speed: float = game.get("speed")
+	var ahead := track.fuels.filter(func(f: Dictionary) -> bool:
+		return not f.done and f.s > distance and f.s < distance + speed * Pacing.RESCUE_LOOKAHEAD)
+	_check("running low puts a fuel pickup within reach", not ahead.is_empty())
+	game.set("fuel", 1.0)
+	var placed := track.place_power(Powers.Kind.MAGNET, distance + 40.0, distance + 120.0, 1)
+	_check("a power gem can be placed on the road ahead", placed and not track.powers.is_empty())
 
 
 func _state() -> String:

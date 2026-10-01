@@ -1,5 +1,5 @@
 extends UiScreen
-## How to play, as five swipe-through cards. Shown automatically before a first-time player's
+## How to play, as six swipe-through cards. Shown automatically before a first-time player's
 ## first run (then its last button starts the run), and from the home and settings screens.
 
 var _pages: Array[Dictionary] = []
@@ -30,10 +30,15 @@ func build() -> void:
 			"body": "Logs, lava and lasers sit low. Jump over them, and slam down to land sooner.",
 			"controls": "Swipe up to jump, down to slam" if touch else "W to jump, S to slam"},
 		{"title": "KEEP YOUR TANK FULL", "icons": ["fuel"],
-			"body": "Fuel drains as you drive. Grab the glowing fuel pickups before it runs dry.",
+			"body": "Fuel drains as you drive. Grab the glowing fuel pickups. Running low? One will turn up ahead.",
 			"controls": "Steer into the pickup's lane"},
+		{"title": "POWER GEMS", "icons": ["shield", "magnet", "gem"],
+			"colors": [Powers.info(Powers.Kind.SHIELD).color, Powers.info(Powers.Kind.MAGNET).color,
+				Powers.info(Powers.Kind.PHOENIX).color],
+			"body": "Rare gems shine with a tall beam. Shields block a crash, magnets pull in orbs. The rare Phoenix Gem saves a free revive for later.",
+			"controls": "Steer into the gem's lane"},
 		{"title": "PRISM OVERDRIVE", "icons": ["bolt"],
-			"body": "Pass gates and grab orbs to fill the Prism meter. Then smash through everything for 5 seconds!",
+			"body": "Pass gates and grab orbs to fill the Prism meter. Then smash through everything: orbs from every lane fly to you for double shards!",
 			"controls": "Tap PRISM" if touch else "SHIFT or E"},
 	]
 	dim(0.6)

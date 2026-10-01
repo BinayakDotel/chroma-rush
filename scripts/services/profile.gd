@@ -5,16 +5,21 @@ extends Node
 signal shards_changed(total: int)
 signal worlds_changed
 signal entitlements_changed
+signal revive_tokens_changed(count: int)
 
 const PATH := "user://profile.cfg"
 const LEGACY_PATH := "user://chroma_rush.cfg"
 const VERSION := 1
 const FREE_WORLD := "meadow"
 const SANDBOX_PATH := "user://dev/profile.cfg"
+## Phoenix gems bank free revives, up to this many.
+const MAX_REVIVE_TOKENS := 3
 
 var shards := 0
 var selected_world := FREE_WORLD
 var tutorial_done := false
+## Free revives banked from Phoenix gems (see Powers).
+var revive_tokens := 0
 var lifetime_runs := 0
 ## Best score per world id.
 var bests := {}
@@ -94,6 +99,25 @@ func add_shards(amount: int) -> void:
 	shards_changed.emit(shards)
 
 
+## Banks a revive from a Phoenix gem. Returns false when the bank is already full.
+func add_revive_token() -> bool:
+	if revive_tokens >= MAX_REVIVE_TOKENS:
+		return false
+	revive_tokens += 1
+	save()
+	revive_tokens_changed.emit(revive_tokens)
+	return true
+
+
+func use_revive_token() -> bool:
+	if revive_tokens <= 0:
+		return false
+	revive_tokens -= 1
+	save()
+	revive_tokens_changed.emit(revive_tokens)
+	return true
+
+
 func grant(entitlement: StringName) -> void:
 	if has_entitlement(entitlement):
 		return
@@ -130,6 +154,7 @@ func reset_progress() -> void:
 	shards = 0
 	selected_world = FREE_WORLD
 	tutorial_done = false
+	revive_tokens = 0
 	lifetime_runs = 0
 	bests.clear()
 	unlocked.assign([FREE_WORLD])
@@ -138,6 +163,7 @@ func reset_progress() -> void:
 	save()
 	shards_changed.emit(shards)
 	worlds_changed.emit()
+	revive_tokens_changed.emit(revive_tokens)
 
 
 func save() -> void:
@@ -147,6 +173,7 @@ func save() -> void:
 	cfg.set_value("progress", "selected_world", selected_world)
 	cfg.set_value("progress", "tutorial_done", tutorial_done)
 	cfg.set_value("progress", "lifetime_runs", lifetime_runs)
+	cfg.set_value("progress", "revive_tokens", revive_tokens)
 	cfg.set_value("progress", "bests", bests)
 	cfg.set_value("progress", "unlocked", unlocked)
 	cfg.set_value("progress", "stats", stats)
@@ -164,6 +191,7 @@ func _load() -> void:
 	selected_world = str(cfg.get_value("progress", "selected_world", FREE_WORLD))
 	tutorial_done = bool(cfg.get_value("progress", "tutorial_done", false))
 	lifetime_runs = int(cfg.get_value("progress", "lifetime_runs", 0))
+	revive_tokens = clampi(int(cfg.get_value("progress", "revive_tokens", 0)), 0, MAX_REVIVE_TOKENS)
 	bests = _dict(cfg.get_value("progress", "bests", {}))
 	var saved_unlocked: Variant = cfg.get_value("progress", "unlocked", [FREE_WORLD])
 	if saved_unlocked is Array:

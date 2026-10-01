@@ -45,6 +45,8 @@ var rows: Array[Dictionary] = []
 var orbs: Array[Dictionary] = []
 ## Fuel pickups, sorted by distance: {s, lane, node, done}.
 var fuels: Array[Dictionary] = []
+## Power gems, sorted by distance: {s, lane, kind, node, done}.
+var powers: Array[Dictionary] = []
 var road_material := ShaderMaterial.new()
 var gate_material := ShaderMaterial.new()
 var scenery: Scenery
@@ -68,6 +70,8 @@ var _side_material := StandardMaterial3D.new()
 var _orb_material := ShaderMaterial.new()
 var _gate_mesh := QuadMesh.new()
 var _gem_meshes: Array[ArrayMesh] = []
+## Per power kind: {mesh, halo, beam}, built once.
+var _power_looks := {}
 
 
 func _ready() -> void:
@@ -86,6 +90,7 @@ func _ready() -> void:
 	_gate_mesh.material = gate_material
 	for slot in Defs.COLORS.size():
 		_gem_meshes.append(Obstacles.gem(slot, _orb_material))
+	_build_power_looks()
 
 	for noise: FastNoiseLite in [_turn_noise, _hill_noise]:
 		noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
@@ -112,6 +117,7 @@ func reset(seed_value: int) -> void:
 	rows.clear()
 	orbs.clear()
 	fuels.clear()
+	powers.clear()
 	_chunks.clear()
 	_pos.clear()
 	_rot.clear()
@@ -239,13 +245,15 @@ func collect_orb(orb: Dictionary) -> void:
 	tween.tween_callback(mi.queue_free)
 
 
-## An orb the player drove past in another lane: shrink it away so it doesn't sweep past the
-## chase camera.
-func drop_orb(orb: Dictionary) -> void:
-	var mi: MeshInstance3D = orb.node
-	var tween := mi.create_tween()
-	tween.tween_property(mi, "scale", Vector3.ONE * 0.01, 0.2)
-	tween.tween_callback(mi.hide)
+## A pickup (orb, fuel or power gem) the player drove past in another lane: shrink it away so
+## it doesn't sweep past the chase camera.
+func drop(item: Dictionary) -> void:
+	var node: Node3D = item.node
+	if not is_instance_valid(node):
+		return
+	var tween := node.create_tween()
+	tween.tween_property(node, "scale", Vector3.ONE * 0.01, 0.2)
+	tween.tween_callback(node.hide)
 
 
 func _ensure_samples(distance: float) -> void:
@@ -469,24 +477,24 @@ func _shuffle(items: Array) -> void:
 ## least SLOT_CLEARANCE metres from each), in the open lane nearest `near_lane` with no orb or
 ## other pickup beside it. Returns {s, lane}, or {} if there is no room.
 func find_slot(from: float, to: float, near_lane: int) -> Dictionary:
-	for i in rows.size() - 1:
-		var before: Dictionary = rows[i]
-		var after: Dictionary = rows[i + 1]
-		if after.s < from + SLOT_CLEARANCE:
+	var lanes := [0, 1, 2]
+	lanes.sort_custom(func(a: int, b: int) -> bool: return absi(a - near_lane) < absi(b - near_lane))
+	# Each stretch between neighbouring rows, including the open road before the first one.
+	for i in rows.size() + 1:
+		var before: Dictionary = rows[i - 1] if i > 0 else {}
+		var after: Dictionary = rows[i] if i < rows.size() else {}
+		var lo := maxf(from, float(before.s) + SLOT_CLEARANCE if before else -INF)
+		var hi := minf(to, float(after.s) - SLOT_CLEARANCE if after else INF)
+		if lo > hi:
+			if after and float(after.s) > to:
+				break
 			continue
-		if before.s > to:
-			break
-		var s := clampf((before.s + after.s) * 0.5, from, to)
-		if s - before.s < SLOT_CLEARANCE or after.s - s < SLOT_CLEARANCE:
-			continue
-		var lanes := [0, 1, 2]
-		lanes.sort_custom(func(a: int, b: int) -> bool: return absi(a - near_lane) < absi(b - near_lane))
+		var s := clampf((float(before.s) + float(after.s)) * 0.5, lo, hi) if before and after else lo
 		for lane: int in lanes:
-			if after.cells[lane] == Defs.SOLID and before.cells[lane] == Defs.SOLID:
+			if before and after and after.cells[lane] == Defs.SOLID and before.cells[lane] == Defs.SOLID:
 				continue
-			if _occupied(s, lane):
-				continue
-			return {"s": s, "lane": lane}
+			if not _occupied(s, lane):
+				return {"s": s, "lane": lane}
 	return {}
 
 
@@ -499,8 +507,49 @@ func place_fuel(from: float, to: float, near_lane: int) -> bool:
 	return true
 
 
+## Places a power gem in a free spot (see find_slot). Returns false if there was no room.
+func place_power(kind: Powers.Kind, from: float, to: float, near_lane: int) -> bool:
+	var slot := find_slot(from, to, near_lane)
+	if slot.is_empty():
+		return false
+	var look: Dictionary = _power_looks[kind]
+	var node := Node3D.new()
+	add_child(node)
+	var frame := frame_at(slot.s)
+	node.transform = Transform3D(frame.basis, frame.origin + frame.basis.x * Defs.lane_x(slot.lane))
+	for part: Mesh in [look.halo, look.beam]:
+		var mi := MeshInstance3D.new()
+		mi.mesh = part
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		node.add_child(mi)
+		if part == look.beam:
+			# Taller and slimmer than a fuel beam: rare things stand out from far away.
+			mi.scale = Vector3(0.7, 2.5, 0.7)
+	var item := MeshInstance3D.new()
+	item.mesh = look.mesh
+	item.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	item.position = Vector3(0.0, 1.25, 0.0)
+	item.scale = Vector3.ONE * 1.3
+	item.set_instance_shader_parameter("color", Powers.info(kind).color)
+	node.add_child(item)
+	if kind == Powers.Kind.PRISM:
+		# The Prism Charge cycles through the rainbow, like Overdrive.
+		var hue := item.create_tween().set_loops()
+		hue.tween_method(func(h: float) -> void: item.set_instance_shader_parameter("color", Color.from_hsv(h, 0.55, 1.0)), 0.0, 1.0, 1.6)
+	var entry := {"s": slot.s, "lane": slot.lane, "kind": kind, "node": node, "done": false}
+	powers.insert(powers.bsearch_custom(entry, func(a: Dictionary, b: Dictionary) -> bool: return a.s < b.s), entry)
+	return true
+
+
+func collect_power(power: Dictionary) -> void:
+	var node: Node3D = power.node
+	var tween := node.create_tween()
+	tween.tween_property(node, "scale", Vector3(2.2, 0.01, 2.2), 0.2)
+	tween.tween_callback(node.queue_free)
+
+
 func _occupied(s: float, lane: int) -> bool:
-	for list: Array[Dictionary] in [orbs, fuels]:
+	for list: Array[Dictionary] in [orbs, fuels, powers]:
 		for item in list:
 			if item.lane == lane and absf(item.s - s) < 4.0:
 				return true
@@ -563,7 +612,34 @@ func _free_behind(limit: float) -> void:
 		var fuel: Dictionary = fuels.pop_front()
 		if is_instance_valid(fuel.node):
 			fuel.node.queue_free()
+	while not powers.is_empty() and powers[0].s < limit:
+		var power: Dictionary = powers.pop_front()
+		if is_instance_valid(power.node):
+			power.node.queue_free()
 	while not orbs.is_empty() and orbs[0].s < limit:
 		var orb: Dictionary = orbs.pop_front()
 		if is_instance_valid(orb.node):
 			orb.node.queue_free()
+
+
+## Each power kind's gem (spinning, outlined, tinted per instance), with a halo and a tall
+## light beam in its colour so it can be spotted from far away.
+func _build_power_looks() -> void:
+	for kind: Powers.Kind in Powers.INFO:
+		var color: Color = Powers.info(kind).color
+		var halo_material := StandardMaterial3D.new()
+		halo_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		halo_material.vertex_color_use_as_albedo = true
+		halo_material.albedo_color = color * 1.4
+		var beam_material := StandardMaterial3D.new()
+		beam_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		beam_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		beam_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		beam_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		beam_material.vertex_color_use_as_albedo = true
+		beam_material.albedo_color = Color(color.r, color.g, color.b, 0.45)
+		_power_looks[kind] = {
+			"mesh": Powers.mesh(kind, _orb_material),
+			"halo": Props.build("fuel_halo", 6, halo_material),
+			"beam": Props.build("fuel_beam", 7, beam_material),
+		}
