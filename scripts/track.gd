@@ -31,7 +31,8 @@ const MAX_PITCH := 0.35    # radians
 const BANK := 6.0          # roll per unit of turn rate
 const FIRST_ROW := 90.0
 const FIRST_FUEL := 150.0
-const FUEL_EVERY := Vector2(130.0, 210.0)
+## Pickups placed later (rescue fuel, power gems) keep at least this far from any row.
+const SLOT_CLEARANCE := 8.0
 const GATE_SIZE := Vector2(2.1, 2.7)
 const GATE_BOTTOM := 0.05
 const GATE_TOP := GATE_BOTTOM + 2.7
@@ -57,8 +58,11 @@ var _turn_noise := FastNoiseLite.new()
 var _hill_noise := FastNoiseLite.new()
 var _chunks: Array[Dictionary] = []
 var _next_chunk := 0
-var _next_row_s := FIRST_ROW
+var _last_row_s := -1.0
+## Ways through the last row spawned (see Pacing.row_options), to space the next one fairly.
+var _last_options: Array[Dictionary] = []
 var _next_fuel_s := FIRST_FUEL
+var _fuel_wave := 0
 
 var _side_material := StandardMaterial3D.new()
 var _orb_material := ShaderMaterial.new()
@@ -114,8 +118,10 @@ func reset(seed_value: int) -> void:
 	_base = 0
 	_yaw = 0.0
 	_next_chunk = 0
-	_next_row_s = FIRST_ROW
+	_last_row_s = -1.0
+	_last_options.clear()
 	_next_fuel_s = FIRST_FUEL
+	_fuel_wave = 0
 	_rng.seed = seed_value
 	_turn_noise.seed = seed_value
 	_hill_noise.seed = seed_value + 7
@@ -130,7 +136,7 @@ func update(s: float) -> void:
 		_build_chunk(_next_chunk)
 		_next_chunk += 1
 	var built_to := _next_chunk * CHUNK * STEP
-	while _next_row_s < built_to - 5.0:
+	while _last_row_s < built_to - Pacing.MAX_GAP:
 		_spawn_row()
 	scenery.update(s)
 	_free_behind(s - BEHIND)
@@ -252,7 +258,7 @@ func _add_sample() -> void:
 	var i := _base + _pos.size()
 	var s := i * STEP
 	# Start straight and flat, then twist more the further you get.
-	var twist := smoothstep(50.0, 250.0, s) * (0.7 + 0.6 * Defs.difficulty(s))
+	var twist := smoothstep(50.0, 250.0, s) * (0.7 + 0.6 * Pacing.difficulty(s))
 	var turn := _turn_noise.get_noise_1d(s) * MAX_TURN * twist
 	var pitch := _hill_noise.get_noise_1d(s) * MAX_PITCH * twist
 	_yaw += turn * STEP
@@ -340,34 +346,53 @@ func _quad(st: SurfaceTool, a: int, b: int, c: int, d: int) -> void:
 	st.add_index(d)
 
 
+## Adds the next obstacle row. Its pattern is picked first, then it is placed far enough after
+## the previous row for every action it needs (see Pacing.row_gap); the stretch in between
+## gets orbs and, when due, fuel.
 func _spawn_row() -> void:
-	var s := _next_row_s
-	var d := Defs.difficulty(s)
-	var gap := maxf(lerpf(40.0, 26.0, d), Defs.speed_at(s) * 1.05)
-	_ensure_samples(s + gap + 2.0)
+	var prev_s := _last_row_s
+	var cells := _pick_pattern(FIRST_ROW if prev_s < 0.0 else prev_s + Pacing.row_gap(prev_s, 0))
+	var options := Pacing.row_options(cells)
+	var s := FIRST_ROW
+	if prev_s >= 0.0:
+		s = prev_s + Pacing.row_gap(prev_s, Pacing.actions_between(_last_options, options))
+	_ensure_samples(s + 2.0)
 
-	var cells := _pick_pattern(s, d)
-	var arch_of_row: MeshInstance3D = null
 	var node := Node3D.new()
 	add_child(node)
 	node.transform = frame_at(s)
 	var meshes: Array = []
 	for lane in Defs.LANES:
 		meshes.append(_make_cell(node, cells[lane], Defs.lane_x(lane)))
+	var arch: MeshInstance3D = null
 	if cells.any(func(cell: int) -> bool: return cell >= 0 and cell <= 2):
-		var arch := MeshInstance3D.new()
+		arch = MeshInstance3D.new()
 		arch.mesh = scenery.arch_mesh
 		node.add_child(arch)
-		arch_of_row = arch
-	rows.append({"s": s, "cells": cells, "node": node, "meshes": meshes, "arch": arch_of_row, "done": false})
+	rows.append({"s": s, "cells": cells, "node": node, "meshes": meshes, "arch": arch, "done": false})
+	_last_row_s = s
+	_last_options = options
+	if prev_s >= 0.0:
+		_fill_gap(prev_s, s)
 
+
+## Orbs and fuel for the stretch between two rows.
+func _fill_gap(from: float, to: float) -> void:
 	var orb_lane := -1
-	if _rng.randf() < 0.6:
-		orb_lane = _spawn_orbs(s + 9.0, s + gap - 9.0)
-	if s + gap * 0.5 >= _next_fuel_s:
-		_spawn_fuel(s + gap * 0.5, orb_lane)
-		_next_fuel_s = s + gap * 0.5 + _rng.randf_range(FUEL_EVERY.x, FUEL_EVERY.y)
-	_next_row_s = s + gap
+	# Breathers are generous with orbs: a calm stretch should still feel rewarding.
+	if _rng.randf() < (0.9 if Pacing.is_calm(from) else 0.6):
+		orb_lane = _spawn_orbs(from + 9.0, to - 9.0)
+	var mid := (from + to) * 0.5
+	var wave := Pacing.wave_index(mid)
+	var breather_fuel := Pacing.is_calm(mid) and mid > Pacing.WARM_UP and wave > _fuel_wave
+	if mid >= _next_fuel_s or breather_fuel:
+		var lane := _rng.randi_range(0, 2)
+		while lane == orb_lane:
+			lane = _rng.randi_range(0, 2)
+		_spawn_fuel(mid, lane)
+		_next_fuel_s = mid + Pacing.fuel_spacing(mid, _rng.randf_range(-1.0, 1.0))
+		if breather_fuel:
+			_fuel_wave = wave
 
 
 func _make_cell(parent: Node3D, cell: int, x: float) -> MeshInstance3D:
@@ -390,40 +415,32 @@ func _make_cell(parent: Node3D, cell: int, x: float) -> MeshInstance3D:
 	return mi
 
 
-func _pick_pattern(s: float, d: float) -> Array:
+func _pick_pattern(s: float) -> Array:
 	var c := _rng.randi_range(0, 2)
 	var other := (c + _rng.randi_range(1, 2)) % 3
-	var early := 0.0 if s < 300.0 else 1.0
-	var weights := [
-		3.0,                      # 0: wall of one colour
-		2.5,                      # 1: solid blocks to dodge
-		(1.0 + 2.0 * d) * early,  # 2: one lane per colour
-		(0.5 + 2.0 * d) * early,  # 3: gates with one block
-		(1.0 + d) * early,        # 4: hurdles to jump
-		3.0 * d * early,          # 5: gate + block + hurdle
-		(1.0 + d) * early,        # 6: two colours
-	]
+	var weights := []
+	for row in Pacing.ROWS:
+		weights.append(Pacing.row_weight(row, s))
 	var cells: Array
-	match _weighted(weights):
-		0:
+	match _weighted(weights) as Pacing.Row:
+		Pacing.Row.WALL:
 			cells = [c, c, c]
-		1:
-			cells = [Defs.EMPTY, Defs.EMPTY, Defs.EMPTY]
-			var blocked := _rng.randi_range(0, 2)
-			cells[blocked] = Defs.SOLID
-			if _rng.randf() < 0.3 + 0.5 * d:
-				cells[(blocked + _rng.randi_range(1, 2)) % 3] = Defs.SOLID
-		2:
-			cells = [0, 1, 2]
-		3:
-			cells = [c, c, c]
-			cells[_rng.randi_range(0, 2)] = Defs.SOLID
-		4:
+		Pacing.Row.BLOCK:
+			cells = [Defs.SOLID, Defs.EMPTY, Defs.EMPTY]
+		Pacing.Row.HURDLES:
 			cells = [Defs.LOW, Defs.LOW, Defs.LOW]
-		5:
-			cells = [c, Defs.SOLID, Defs.LOW]
-		_:
+		Pacing.Row.TWO_COLOURS:
 			cells = [c, c, other]
+		Pacing.Row.TWO_BLOCKS:
+			cells = [Defs.SOLID, Defs.SOLID, Defs.EMPTY]
+		Pacing.Row.GATES_AND_BLOCK:
+			cells = [c, c, Defs.SOLID]
+		Pacing.Row.RAINBOW:
+			cells = [0, 1, 2]
+		Pacing.Row.HURDLES_AND_BLOCK:
+			cells = [Defs.LOW, Defs.LOW, Defs.SOLID]
+		_:
+			cells = [c, Defs.SOLID, Defs.LOW]
 	_shuffle(cells)
 	return cells
 
@@ -448,11 +465,50 @@ func _shuffle(items: Array) -> void:
 		items[j] = tmp
 
 
-## Places a spinning fuel pickup in a lane other than `avoid_lane`.
-func _spawn_fuel(s: float, avoid_lane: int) -> void:
-	var lane := _rng.randi_range(0, 2)
-	while lane == avoid_lane:
-		lane = _rng.randi_range(0, 2)
+## A free spot for a pickup between distances `from` and `to`: midway between two rows (at
+## least SLOT_CLEARANCE metres from each), in the open lane nearest `near_lane` with no orb or
+## other pickup beside it. Returns {s, lane}, or {} if there is no room.
+func find_slot(from: float, to: float, near_lane: int) -> Dictionary:
+	for i in rows.size() - 1:
+		var before: Dictionary = rows[i]
+		var after: Dictionary = rows[i + 1]
+		if after.s < from + SLOT_CLEARANCE:
+			continue
+		if before.s > to:
+			break
+		var s := clampf((before.s + after.s) * 0.5, from, to)
+		if s - before.s < SLOT_CLEARANCE or after.s - s < SLOT_CLEARANCE:
+			continue
+		var lanes := [0, 1, 2]
+		lanes.sort_custom(func(a: int, b: int) -> bool: return absi(a - near_lane) < absi(b - near_lane))
+		for lane: int in lanes:
+			if after.cells[lane] == Defs.SOLID and before.cells[lane] == Defs.SOLID:
+				continue
+			if _occupied(s, lane):
+				continue
+			return {"s": s, "lane": lane}
+	return {}
+
+
+## Places a fuel pickup in a free spot (see find_slot). Returns false if there was no room.
+func place_fuel(from: float, to: float, near_lane: int) -> bool:
+	var slot := find_slot(from, to, near_lane)
+	if slot.is_empty():
+		return false
+	_spawn_fuel(slot.s, slot.lane)
+	return true
+
+
+func _occupied(s: float, lane: int) -> bool:
+	for list: Array[Dictionary] in [orbs, fuels]:
+		for item in list:
+			if item.lane == lane and absf(item.s - s) < 4.0:
+				return true
+	return false
+
+
+## Places a spinning fuel pickup, keeping `fuels` sorted by distance.
+func _spawn_fuel(s: float, lane: int) -> void:
 	var node := Node3D.new()
 	add_child(node)
 	var frame := frame_at(s)
@@ -475,7 +531,8 @@ func _spawn_fuel(s: float, avoid_lane: int) -> void:
 	var pulse := halo.create_tween().set_loops()
 	pulse.tween_property(halo, "scale", Vector3.ONE * 1.25, 0.5)
 	pulse.tween_property(halo, "scale", Vector3.ONE, 0.5)
-	fuels.append({"s": s, "lane": lane, "node": node, "done": false})
+	var entry := {"s": s, "lane": lane, "node": node, "done": false}
+	fuels.insert(fuels.bsearch_custom(entry, func(a: Dictionary, b: Dictionary) -> bool: return a.s < b.s), entry)
 
 
 ## Spawns a line of orbs and returns its lane (or -1 if there was no room).

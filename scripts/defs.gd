@@ -19,21 +19,9 @@ const COLOR_NAMES: Array[String] = ["RED", "YELLOW", "BLUE"]
 enum Symbol { CIRCLE, TRIANGLE, SQUARE }
 const SYMBOLS: Array[int] = [Symbol.CIRCLE, Symbol.TRIANGLE, Symbol.SQUARE]
 
-const BASE_SPEED := 16.0
-const MAX_SPEED := 44.0
-const SPEED_RAMP := 0.01  # m/s gained per metre travelled
-
 
 static func lane_x(lane: int) -> float:
 	return (lane - 1) * LANE_WIDTH
-
-
-static func speed_at(distance: float) -> float:
-	return minf(BASE_SPEED + distance * SPEED_RAMP, MAX_SPEED)
-
-
-static func difficulty(distance: float) -> float:
-	return clampf(distance / 2500.0, 0.0, 1.0)
 
 
 ## Dark variant of a gate colour for outlines and pressed states.
