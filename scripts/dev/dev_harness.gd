@@ -16,7 +16,9 @@ extends Node
 ##   --hide-ui             hide every screen (clean shots of the 3D scene)
 ##   --screen-delay=<s>    seconds of play before --screen=pause|results opens (default 2)
 ##   --flow-test           run the end-to-end flow checks in flow_test.gd and exit
-##   --screen=<name>       open a screen for screenshots: settings | shop | howto | pause | results
+##   --screen=<name>       open a screen for screenshots: settings | shop | upgrades | howto |
+##                         pause | results
+##   --shards=<n>          start with this many shards
 ##   --showcase=<yaw>      close-up camera orbiting the vehicle at this angle (degrees)
 ##   --bot=human           with --autoplay: drive like a person instead of perfectly. It looks
 ##                         at each row only after passing the previous one, reacts after
@@ -61,6 +63,9 @@ func _ready() -> void:
 		for arg in OS.get_cmdline_user_args():
 			if arg.begins_with("--tokens="):
 				Profile.revive_tokens = int(arg.get_slice("=", 1))
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--shards="):
+			Profile.shards = int(arg.get_slice("=", 1))
 	for arg in OS.get_cmdline_user_args():
 		var parts := arg.trim_prefix("--").split("=", true, 1)
 		_args[parts[0]] = parts[1] if parts.size() > 1 else "true"
@@ -297,6 +302,8 @@ func _open_screen(screen: String) -> void:
 			ui.open_settings()
 		"shop":
 			ui.open_shop()
+		"upgrades":
+			ui.open_upgrades()
 		"howto":
 			ui.open_howto(false)
 		"pause", "results":

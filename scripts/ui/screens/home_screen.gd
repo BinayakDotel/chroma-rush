@@ -10,6 +10,8 @@ var _rush: Label
 var _column: VBoxContainer
 var _center: CenterContainer
 var _shards: HBoxContainer
+var _tokens: PanelContainer
+var _upgrade_dot: Control
 var _panel: PanelContainer
 var _world_name: Label
 var _character: Label
@@ -33,7 +35,23 @@ func build() -> void:
 	_shards = UiKit.shard_amount(Profile.shards, 30)
 	pill.add_child(_shards)
 	top.add_child(pill)
+	# Banked revives from Phoenix gems, shown once there are any.
+	_tokens = UiKit.pill(Color(0.1, 0.05, 0.22, 0.75), Vector2(14, 6))
+	var token_row := UiKit.hbox(6)
+	token_row.add_child(UiIcon.make("gem", Powers.info(Powers.Kind.PHOENIX).color, Vector2(30, 30)))
+	var token_count := UiKit.text("0", 30, false, 900)
+	token_count.name = "Count"
+	token_row.add_child(token_count)
+	_tokens.add_child(token_row)
+	top.add_child(_tokens)
 	top.add_child(UiKit.spacer())
+	var upgrades := UiKit.icon_button("upgrade", "gold", 64)
+	upgrades.pressed.connect(ui.open_upgrades)
+	top.add_child(upgrades)
+	# A dot on the button while some upgrade is affordable.
+	_upgrade_dot = UiIcon.make("circle", UiKit.STYLES.pink[0], Vector2(20, 20))
+	_upgrade_dot.position = Vector2(46, -2)
+	upgrades.add_child(_upgrade_dot)
 	var help := UiKit.icon_button("help", "light", 64)
 	help.pressed.connect(func() -> void: ui.open_howto(false))
 	top.add_child(help)
@@ -114,6 +132,8 @@ func build() -> void:
 	content.add_child(_pass)
 
 	Profile.shards_changed.connect(func(_total: int) -> void: _refresh())
+	Profile.upgrades_changed.connect(_refresh)
+	Profile.revive_tokens_changed.connect(func(_count: int) -> void: _refresh())
 	Profile.worlds_changed.connect(_refresh)
 	Profile.entitlements_changed.connect(_refresh)
 	Store.products_updated.connect(_refresh)
@@ -133,6 +153,9 @@ func _refresh() -> void:
 	if _world.is_empty():
 		return
 	(_shards.get_node("Amount") as Label).text = UiKit.thousands(Profile.shards)
+	_tokens.visible = Profile.revive_tokens > 0
+	(_tokens.find_child("Count", true, false) as Label).text = str(Profile.revive_tokens)
+	_upgrade_dot.visible = Profile.can_buy_upgrade()
 	_world_name.text = _world.name
 	_character.text = _world.character
 	for child in _status.get_children():

@@ -24,6 +24,7 @@ const FIRST_AT := 650.0
 const EVERY := Vector2(700.0, 1050.0)
 ## Seconds of travel ahead at which a gem is placed: far enough to see it and steer for it.
 const LEAD_TIME := Vector2(4.0, 6.0)
+## Seconds a magnet lasts before upgrades (see Economy.UPGRADES "magnet").
 const MAGNET_TIME := 8.0
 ## Phoenix gems only turn up once the run is going (metres), and only while the player holds
 ## fewer than Profile.MAX_REVIVE_TOKENS.

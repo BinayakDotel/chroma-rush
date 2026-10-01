@@ -6,6 +6,7 @@ signal shards_changed(total: int)
 signal worlds_changed
 signal entitlements_changed
 signal revive_tokens_changed(count: int)
+signal upgrades_changed
 
 const PATH := "user://profile.cfg"
 const LEGACY_PATH := "user://chroma_rush.cfg"
@@ -24,6 +25,8 @@ var lifetime_runs := 0
 ## Best score per world id.
 var bests := {}
 var unlocked: Array[String] = [FREE_WORLD]
+## Upgrade id -> level bought (see Economy.UPGRADES).
+var upgrades := {}
 ## Entitlement name -> true. Purchases are also restorable from the store.
 var entitlements := {}
 var stats := {"distance": 0.0, "gates": 0, "orbs": 0, "best_combo": 0, "best_distance": 0}
@@ -91,6 +94,37 @@ func buy_world(world_id: String) -> bool:
 	return true
 
 
+func upgrade_level(id: String) -> int:
+	return int(upgrades.get(id, 0))
+
+
+## The upgrade's current effect (see Economy.UPGRADES).
+func upgrade_value(id: String) -> float:
+	return Economy.upgrade_value(id, upgrade_level(id))
+
+
+## Spends shards on the next level of an upgrade. False if maxed out or unaffordable.
+func buy_upgrade(id: String) -> bool:
+	var cost := Economy.upgrade_cost(id, upgrade_level(id))
+	if cost < 0 or shards < cost:
+		return false
+	shards -= cost
+	upgrades[id] = upgrade_level(id) + 1
+	save()
+	shards_changed.emit(shards)
+	upgrades_changed.emit()
+	return true
+
+
+## True when some upgrade's next level is affordable (the home screen shows a badge).
+func can_buy_upgrade() -> bool:
+	for id: String in Economy.UPGRADES:
+		var cost := Economy.upgrade_cost(id, upgrade_level(id))
+		if cost >= 0 and shards >= cost:
+			return true
+	return false
+
+
 func add_shards(amount: int) -> void:
 	if amount <= 0:
 		return
@@ -155,6 +189,7 @@ func reset_progress() -> void:
 	selected_world = FREE_WORLD
 	tutorial_done = false
 	revive_tokens = 0
+	upgrades.clear()
 	lifetime_runs = 0
 	bests.clear()
 	unlocked.assign([FREE_WORLD])
@@ -164,6 +199,7 @@ func reset_progress() -> void:
 	shards_changed.emit(shards)
 	worlds_changed.emit()
 	revive_tokens_changed.emit(revive_tokens)
+	upgrades_changed.emit()
 
 
 func save() -> void:
@@ -174,6 +210,7 @@ func save() -> void:
 	cfg.set_value("progress", "tutorial_done", tutorial_done)
 	cfg.set_value("progress", "lifetime_runs", lifetime_runs)
 	cfg.set_value("progress", "revive_tokens", revive_tokens)
+	cfg.set_value("progress", "upgrades", upgrades)
 	cfg.set_value("progress", "bests", bests)
 	cfg.set_value("progress", "unlocked", unlocked)
 	cfg.set_value("progress", "stats", stats)
@@ -192,6 +229,10 @@ func _load() -> void:
 	tutorial_done = bool(cfg.get_value("progress", "tutorial_done", false))
 	lifetime_runs = int(cfg.get_value("progress", "lifetime_runs", 0))
 	revive_tokens = clampi(int(cfg.get_value("progress", "revive_tokens", 0)), 0, MAX_REVIVE_TOKENS)
+	var saved_upgrades := _dict(cfg.get_value("progress", "upgrades", {}))
+	for id: String in Economy.UPGRADES:
+		if saved_upgrades.has(id):
+			upgrades[id] = clampi(int(saved_upgrades[id]), 0, Economy.max_level(id))
 	bests = _dict(cfg.get_value("progress", "bests", {}))
 	var saved_unlocked: Variant = cfg.get_value("progress", "unlocked", [FREE_WORLD])
 	if saved_unlocked is Array:
