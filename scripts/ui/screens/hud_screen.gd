@@ -188,7 +188,6 @@ func _make_swatch(i: int) -> Button:
 		b.add_theme_stylebox_override(state, box)
 	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	var icon := UiIcon.make(UiIcon.symbol_name(i), Color.WHITE, Vector2(40, 40))
-	icon.outline = face.darkened(0.5)
 	b.add_child(icon)
 	var key := UiKit.text(KEYS[i], 16, false, 900)
 	key.visible = not OS.has_feature("mobile")
@@ -287,7 +286,8 @@ func set_color(index: int) -> void:
 		var selected := i == index
 		var swatch := _swatches[i]
 		swatch.custom_minimum_size = Vector2.ONE * (big if selected else small)
-		swatch.modulate = Color.WHITE if selected else Color(0.72, 0.72, 0.72)
+		# Unselected buttons are smaller and a touch quieter, but keep their true colour.
+		swatch.modulate = Color.WHITE if selected else Color(0.9, 0.9, 0.9)
 		for state in ["normal", "hover", "pressed"]:
 			var box: StyleBoxFlat = swatch.get_theme_stylebox(state)
 			box.set_corner_radius_all(int(swatch.custom_minimum_size.x * 0.5))

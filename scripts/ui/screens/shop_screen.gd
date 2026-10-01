@@ -81,12 +81,12 @@ func _product_card(id: String) -> Control:
 	if featured:
 		var badge := UiKit.pill(UiKit.STYLES.pink[0], Vector2(10, 2))
 		badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		badge.add_child(UiKit.text("BEST VALUE", 14, false, 900))
+		badge.add_child(UiKit.text("BEST VALUE", 16, false, 900))
 		title_row.add_child(badge)
 	for perk: Array in PERKS.get(id, []):
 		var line := UiKit.hbox(8)
 		line.add_child(UiIcon.make(perk[0], UiKit.INK_SOFT, Vector2(20, 20)))
-		var label := UiKit.text(perk[1], 18, true, 700)
+		var label := UiKit.text(perk[1], 19, true, 700)
 		label.label_settings.font_color = UiKit.INK_SOFT
 		line.add_child(label)
 		info.add_child(line)

@@ -64,7 +64,7 @@ func build() -> void:
 	list.add_child(links)
 	var credits := UiKit.wrapped(UiKit.text(
 		"Chroma Rush %s  -  Made with Godot Engine. Fonts: Lilita One and Nunito (SIL Open Font License)." %
-		ProjectSettings.get_setting("application/config/version", "1.0.0"), 16, true, 600))
+		ProjectSettings.get_setting("application/config/version", "1.0.0"), 18, true, 600))
 	credits.label_settings.font_color = UiKit.INK_SOFT
 	list.add_child(credits)
 	var reset := UiKit.button("RESET PROGRESS", "danger", Vector2(0, 60), 22, "reset")
@@ -75,7 +75,7 @@ func build() -> void:
 
 
 func _section(list: VBoxContainer, title_text: String) -> void:
-	var label := UiKit.text(title_text, 18, true, 900)
+	var label := UiKit.text(title_text, 19, true, 900)
 	label.label_settings.font_color = UiKit.INK_SOFT
 	list.add_child(label)
 
@@ -92,7 +92,7 @@ func _row(list: VBoxContainer, icon: String, title_text: String, subtitle: Strin
 	row.add_child(text_col)
 	text_col.add_child(UiKit.text(title_text, 24, true, 800))
 	if not subtitle.is_empty():
-		var sub := UiKit.wrapped(UiKit.text(subtitle, 16, true, 600))
+		var sub := UiKit.wrapped(UiKit.text(subtitle, 18, true, 600))
 		sub.label_settings.font_color = UiKit.INK_SOFT
 		text_col.add_child(sub)
 	return row

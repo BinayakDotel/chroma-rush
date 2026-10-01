@@ -272,7 +272,7 @@ static func mission_row(mission: Dictionary, value: int) -> PanelContainer:
 	var info := vbox(4)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(info)
-	info.add_child(wrapped(text(Missions.describe(mission), 19, true, 800)))
+	info.add_child(wrapped(text(Missions.describe(mission), 21, true, 800)))
 	var progress := hbox(10)
 	info.add_child(progress)
 	var meter := bar(0, 12, STYLES.primary[0] if done else GOLD, Color(0.84, 0.82, 0.92))
@@ -281,7 +281,7 @@ static func mission_row(mission: Dictionary, value: int) -> PanelContainer:
 	meter.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	meter.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	progress.add_child(meter)
-	var count := text("DONE" if done else "%s / %s" % [_thousands(value), _thousands(target)], 15, true, 900)
+	var count := text("DONE" if done else "%s / %s" % [_thousands(value), _thousands(target)], 18, true, 900)
 	count.label_settings.font_color = STYLES.primary[1] if done else INK_SOFT
 	progress.add_child(count)
 	var reward := shard_amount(Missions.payout(mission), 22, true)
