@@ -1,12 +1,12 @@
 extends UiScreen
-## Landing page. Shards and settings sit quietly in the top corners; the logo is the hero; and
-## everything the player does next is in thumb reach at the bottom: MISSIONS, UPGRADES and SHOP
-## in a dock, then the world picker with its PLAY or unlock button. The 3D scene behind shows
-## the current world's vehicle circling.
+## Landing page, in symbols rather than words. Shards and settings sit quietly in the top
+## corners; the logo is the hero; and everything the player does next is in thumb reach at the
+## bottom: missions, upgrades and shop in a dock, then the world picker with its play or unlock
+## button. The only words are the logo and the world's name. The 3D scene behind shows the
+## current world's vehicle circling.
 
 var _logo: VBoxContainer
 var _mark: GameLogo
-var _tagline: Label
 var _column: VBoxContainer
 var _dock: HBoxContainer
 var _shards: HBoxContainer
@@ -14,7 +14,6 @@ var _tokens: PanelContainer
 var _upgrade_dot: Control
 var _panel: PanelContainer
 var _world_name: Label
-var _character: Label
 var _status: HBoxContainer
 var _dots: HBoxContainer
 var _play: Button
@@ -58,8 +57,6 @@ func build() -> void:
 	_mark = GameLogo.new()
 	_mark.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_logo.add_child(_mark)
-	_tagline = UiKit.centered(UiKit.text("Match the gate. Dodge the rest.", 26, false, 900))
-	_logo.add_child(_tagline)
 
 	# Dock and world picker, centred along the bottom edge.
 	_column = UiKit.vbox(14)
@@ -71,14 +68,14 @@ func build() -> void:
 	_dock = UiKit.hbox(12)
 	_dock.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_column.add_child(_dock)
-	_dock_button("MISSIONS", "sky", "target", ui.open_missions)
-	var upgrades := _dock_button("UPGRADES", "gold", "upgrade", ui.open_upgrades)
+	_dock_button("sky", "target", ui.open_missions)
+	var upgrades := _dock_button("gold", "upgrade", ui.open_upgrades)
 	# A dot on the button while some upgrade is affordable.
 	_upgrade_dot = UiIcon.make("circle", UiKit.STYLES.pink[0], Vector2(22, 22))
 	_upgrade_dot.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	_upgrade_dot.position += Vector2(-16, -6)
 	upgrades.add_child(_upgrade_dot)
-	_dock_button("SHOP", "pink", "bag", ui.open_shop)
+	_dock_button("pink", "bag", ui.open_shop)
 
 	_panel = UiKit.card(24)
 	_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -96,9 +93,6 @@ func build() -> void:
 	_world_name = UiKit.centered(UiKit.title("", 50, UiKit.INK, Color(1, 1, 1, 0)))
 	_world_name.label_settings.shadow_color = Color(0, 0, 0, 0)
 	info.add_child(_world_name)
-	_character = UiKit.centered(UiKit.text("", 21, true, 700))
-	_character.label_settings.font_color = UiKit.INK_SOFT
-	info.add_child(_character)
 	_status = UiKit.hbox(8)
 	_status.alignment = BoxContainer.ALIGNMENT_CENTER
 	info.add_child(_status)
@@ -109,13 +103,13 @@ func build() -> void:
 	_dots.alignment = BoxContainer.ALIGNMENT_CENTER
 	content.add_child(_dots)
 
-	_play = UiKit.button("PLAY", "primary", Vector2(0, 104), 54, "play")
+	_play = UiKit.button("", "primary", Vector2(0, 108), 64, "play")
 	_play.pressed.connect(ui.play_requested.emit)
 	content.add_child(_play)
-	_unlock = UiKit.button("UNLOCK", "gold", Vector2(0, 88), 38, "lock")
+	_unlock = UiKit.button("", "gold", Vector2(0, 92), 40, "lock")
 	_unlock.pressed.connect(ui.unlock_requested.emit)
 	content.add_child(_unlock)
-	_pass = UiKit.button("GET WORLD PASS", "sky", Vector2(0, 68), 28, "bag")
+	_pass = UiKit.button("", "sky", Vector2(0, 68), 28, ["bag", "star"])
 	_pass.pressed.connect(ui.open_shop)
 	content.add_child(_pass)
 
@@ -127,9 +121,9 @@ func build() -> void:
 	Store.products_updated.connect(_refresh)
 
 
-## One of the three dock buttons: an icon and a word, all the same width.
-func _dock_button(label: String, style: String, icon: String, action: Callable) -> Button:
-	var button := UiKit.button(label, style, Vector2(0, 72), 22, icon)
+## One of the three dock buttons: a big symbol each, all the same width.
+func _dock_button(style: String, icon: String, action: Callable) -> Button:
+	var button := UiKit.button("", style, Vector2(0, 84), 44, icon)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.pressed.connect(action)
 	_dock.add_child(button)
@@ -173,27 +167,25 @@ func _refresh() -> void:
 	(_tokens.find_child("Count", true, false) as Label).text = str(Profile.revive_tokens)
 	_upgrade_dot.visible = Profile.can_buy_upgrade()
 	_world_name.text = _world.name
-	_character.text = _world.character
 	for child in _status.get_children():
 		child.queue_free()
 	var unlocked := Profile.is_unlocked(_world.id)
 	var cost := Economy.world_cost(_world.id)
-	if unlocked:
-		var best := Profile.best(_world.id)
-		_status.add_child(UiIcon.make("trophy", UiKit.GOLD.darkened(0.15), Vector2(26, 26)))
-		_status.add_child(UiKit.text("BEST  %s" % UiKit.thousands(best) if best > 0 else "NEW WORLD - SET A SCORE", 22, true, 900))
-	else:
-		_status.add_child(UiIcon.make("lock", UiKit.INK_SOFT, Vector2(24, 24)))
-		_status.add_child(UiKit.text("LOCKED", 22, true, 900))
+	# Best score under the name once there is one; a locked world says so on its button.
+	var best := Profile.best(_world.id)
+	_status.visible = unlocked and best > 0
+	if _status.visible:
+		_status.add_child(UiIcon.make("trophy", UiKit.GOLD.darkened(0.15), Vector2(28, 28)))
+		_status.add_child(UiKit.text(UiKit.thousands(best), 26, true, 900))
 	_play.visible = unlocked
 	_unlock.visible = not unlocked
 	_pass.visible = not unlocked and Store.is_available() and not Store.is_owned("world_pass")
 	if not unlocked:
 		var affordable := Profile.shards >= cost
-		UiKit.set_text(_unlock, ("UNLOCK  %s" if affordable else "NEED  %s") % UiKit.thousands(cost))
+		UiKit.set_text(_unlock, UiKit.thousands(cost))
 		(_unlock.get_meta("icon") as UiIcon).set_icon("shard" if affordable else "lock", Color(0.35, 0.2, 0.05))
 		_unlock.disabled = not affordable
-		UiKit.set_text(_pass, "ALL WORLDS  %s" % Store.price("world_pass"))
+		UiKit.set_text(_pass, Store.price("world_pass"))
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -223,7 +215,6 @@ func layout(portrait: bool) -> void:
 	if not _panel:
 		return
 	_mark.font_size = 112 if portrait else 78
-	_tagline.visible = portrait
 	var width := card_width(true) if portrait else 520.0
 	_panel.custom_minimum_size = Vector2(width, 0)
 	_dock.custom_minimum_size = Vector2(width, 0)

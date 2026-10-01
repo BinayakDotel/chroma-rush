@@ -125,6 +125,15 @@ func scroll_list(parent: Control, separation := 12) -> VBoxContainer:
 	return list
 
 
+## Makes the scroll area exactly as tall as its list, up to `limit` pixels, so a short list
+## leaves no empty card under it and a long one scrolls.
+func fit_scroll(limit: float) -> void:
+	var scroll: ScrollContainer = find_child("Scroll", true, false)
+	if scroll and scroll.get_child_count() > 0:
+		var list := scroll.get_child(0) as Control
+		scroll.custom_minimum_size.y = minf(list.get_combined_minimum_size().y, limit)
+
+
 func card_width(portrait: bool, landscape_width := 620.0) -> float:
 	var available := get_viewport_rect().size.x - 48.0
 	return minf(available, 660.0) if portrait else minf(landscape_width, available)
