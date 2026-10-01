@@ -648,18 +648,23 @@ func _check_fuel() -> void:
 
 ## Last resort (see Pacing.DROP_*): the tank is nearly empty and no pickup can be reached
 ## before it runs dry, so a small fuel drop lands a few seconds ahead. It is announced, it is
-## rare, and it is not placed in the player's lane: a rescue to earn, not a free refill.
+## rare, it is limited per run, and it is not placed in the player's lane: a rescue to earn,
+## not a free refill.
 func _maybe_drop_fuel(delta: float) -> void:
 	_drop_cooldown = maxf(_drop_cooldown - delta, 0.0)
 	if fuel >= Pacing.DROP_BELOW or _drop_cooldown > 0.0 or prism_left > 0.0 or _coast >= COAST_TIME * 0.5:
 		return
-	var seconds_left := fuel * Pacing.tank_time(distance) * _tank_bonus + COAST_TIME - maxf(_coast, 0.0)
-	var reach := distance + speed * seconds_left * 0.9
+	if int(run_stats.drops) >= Pacing.DROP_LIMIT:
+		return
+	# How far the vehicle can still get: the fuel left, then half the coasting time (it slows
+	# to a stop while coasting). The drop has to land well inside that.
+	var full_speed := Pacing.speed_at(distance)
+	var range_left := full_speed * (fuel * Pacing.tank_time(distance) * _tank_bonus + (COAST_TIME - maxf(_coast, 0.0)) * 0.5)
 	for pickup in track.fuels:
-		if not pickup.done and pickup.s > distance + 1.0 and pickup.s < reach:
+		if not pickup.done and pickup.s > distance + 1.0 and pickup.s < distance + range_left * 0.9:
 			return
-	var near := distance + speed * Pacing.DROP_AHEAD.x
-	var far := distance + speed * Pacing.DROP_AHEAD.y
+	var near := distance + minf(full_speed * Pacing.DROP_AHEAD.x, range_left * 0.55)
+	var far := distance + minf(full_speed * Pacing.DROP_AHEAD.y, range_left * 0.85)
 	var lane := (player.lane + 1 + randi() % 2) % Defs.LANES
 	if track.drop_fuel(near, far, lane, Pacing.DROP_FUEL):
 		run_stats.drops += 1
