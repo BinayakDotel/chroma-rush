@@ -36,7 +36,7 @@ const DialogScreen = preload("res://scripts/ui/screens/dialog_screen.gd")
 ## The boot splash (see project.godot) and the colour behind it, repeated here so the game can
 ## open by lifting that same picture away instead of cutting to the home screen.
 const SPLASH_PATH := "res://icons/splash.png"
-const SPLASH_COLOR := Color(0.208, 0.149, 0.788)
+const SPLASH_COLOR := Color(0.525, 0.314, 0.941)
 
 var home: UiScreen
 var hud: UiScreen
@@ -92,8 +92,8 @@ func _process(_delta: float) -> void:
 		_fps.text = "%d FPS" % Engine.get_frames_per_second()
 
 
-## Opening: the first frame looks exactly like the boot splash (same colour, same logo in the
-## same place), then the logo swells a little and the whole cover fades to show the home screen.
+## Opening: the first frame looks exactly like the boot splash (the same picture, filling the
+## screen the same way), then it swells a little and fades to show the home screen.
 func _play_intro() -> void:
 	if not ResourceLoader.exists(SPLASH_PATH):
 		return
@@ -105,7 +105,7 @@ func _play_intro() -> void:
 	var logo := TextureRect.new()
 	logo.texture = load(SPLASH_PATH)
 	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	UiKit.full_rect(logo)
 	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cover.add_child(logo)

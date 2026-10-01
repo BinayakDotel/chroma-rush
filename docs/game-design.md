@@ -204,7 +204,7 @@ The art is low-poly, but it should read as a modern, soft, toy-like game, not as
 - **Readable.** Body text is bold (Nunito 700 to 900) and nothing is smaller than 18 canvas pixels, about 9 pt on a phone. Numbers that matter use the title font.
 - **Lists scroll from anywhere.** A list built with `UiScreen.scroll_list()` scrolls when dragged by a row or a button, not only by the gaps (see `UiKit.pass_touches`); a 12 px dead zone keeps taps from nudging it. Overlays that are a card of options close on a tap outside the card, and cards pop in.
 - **The brand shows the vehicle and its driver**, so the game reads as a racer, not a block puzzle. `scripts/dev/render_icons.gd` renders the fox in its kart from the real model and builds everything from it: the logo (white CHROMA on a deep lip, then RUSH leaning forward beside the kart, which trails the three gate colours; `scripts/ui/logo.gd`), the app icon (the kart racing out of a three-colour trail) and the splash.
-- **No hard cut at launch.** The boot splash is the logo on the brand colour, scaled to fit. The game opens on a cover that looks exactly the same and lifts it away to show the home screen.
+- **No hard cut at launch, and one picture throughout.** The boot splash is the icon's picture at full screen (the same sky, colour trail and kart) with the logo above it, cropped to cover any screen. A flat colour with a logo on it was tried first and read as cheap and unrelated to the game. The game opens on a cover showing that same picture and fades it away to show the home screen.
 
 ### Performance
 
