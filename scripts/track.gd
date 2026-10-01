@@ -27,6 +27,12 @@ const HALF_WIDTH := 3.9
 const SIDE_TOP := 0.0
 const SIDE_BOTTOM := -1.2
 const MAX_TURN := 0.055    # radians of heading change per metre
+## The road may swing this far (radians) either side of straight ahead. Past HEADING_SOFT,
+## turning further out is damped, reaching zero at HEADING_MAX. The track therefore always makes
+## headway and can never loop back on itself, which used to put one stretch's scenery on top of
+## another stretch's road (see scripts/dev/path_check.gd).
+const HEADING_SOFT := 0.55
+const HEADING_MAX := 1.05
 const MAX_PITCH := 0.35    # radians
 const BANK := 6.0          # roll per unit of turn rate
 const FIRST_ROW := 90.0
@@ -151,11 +157,18 @@ func update(s: float) -> void:
 
 
 ## Track frame at distance `s`: origin on the road centre, basis x = right, y = up, -z = forward.
+## The position follows a smooth curve through the samples (not straight lines between them), so
+## the vehicle and the camera never change direction abruptly at a sample.
 func frame_at(s: float) -> Transform3D:
-	var f := clampf(s / STEP - _base, 0.0, _pos.size() - 1.001)
+	var last := _pos.size() - 1
+	var f := clampf(s / STEP - _base, 0.0, last - 0.001)
 	var i := int(f)
 	var t := f - i
-	return Transform3D(Basis(_rot[i].slerp(_rot[i + 1], t)), _pos[i].lerp(_pos[i + 1], t))
+	var a := _pos[i]
+	var b := _pos[i + 1]
+	var before := _pos[i - 1] if i > 0 else a - (b - a)
+	var after := _pos[i + 2] if i + 2 <= last else b + (b - a)
+	return Transform3D(Basis(_rot[i].slerp(_rot[i + 1], t)), a.cubic_interpolate(b, before, after, t))
 
 
 ## True when no path sample from a while before `around_s` to the end of the generated
@@ -268,6 +281,8 @@ func _add_sample() -> void:
 	# Start straight and flat, then twist more the further you get.
 	var twist := smoothstep(50.0, 250.0, s) * (0.7 + 0.6 * Pacing.difficulty(s))
 	var turn := _turn_noise.get_noise_1d(s) * MAX_TURN * twist
+	if turn * _yaw > 0.0:
+		turn *= 1.0 - smoothstep(HEADING_SOFT, HEADING_MAX, absf(_yaw))
 	var pitch := _hill_noise.get_noise_1d(s) * MAX_PITCH * twist
 	_yaw += turn * STEP
 	var fwd := Vector3(-sin(_yaw) * cos(pitch), sin(pitch), -cos(_yaw) * cos(pitch))
