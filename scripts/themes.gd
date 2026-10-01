@@ -9,6 +9,10 @@ class_name Themes
 ## Gate colours are shared by every world (Defs.COLORS); each world's sky, ground and path were
 ## tuned so those colours keep a CIEDE2000 difference of 12+ against them.
 ##
+## Surfaces share one soft material (see Look and shaders/soft.gdshader); `look` sets its rim
+## light per world, usually the colour of that world's sky glow. The path (`road`) is one calm
+## colour with a darker shoulder, light dashes between the lanes (`mark_*`) and a low `kerb`.
+##
 ## Keys used by the game besides the look: `id` (save key and price, see Economy), `character`
 ## and `tagline` (world picker), `arch` (gate arch style), `trail` (particles behind the vehicle).
 
@@ -35,7 +39,7 @@ static func meadow() -> Dictionary:
 		"character": "Fox in a go-kart",
 		"tagline": "Rolling hills, pine forests and a turquoise sea.",
 		"arch": "wood",
-		"trail": {"color": Color(0.62, 0.5, 0.34, 0.8), "size": 0.16, "gravity": -4.0, "glow": false},
+		"trail": {"color": Color(0.93, 0.87, 0.74, 0.55), "size": 0.16, "gravity": -4.0, "glow": false},
 		"player": "kart",
 		"fuel": "jerrycan",
 		"sky": {
@@ -45,14 +49,16 @@ static func meadow() -> Dictionary:
 			"cloud_color": Color(1.0, 1.0, 1.0), "cloud_shade": Color(0.8, 0.84, 0.96), "cloud_amount": 0.3,
 		},
 		"sun_elevation": 42.0, "sun_azimuth": 35.0,
-		"light_color": Color(1.0, 0.93, 0.8), "light_energy": 1.4,
+		"light_color": Color(1.0, 0.94, 0.82), "light_energy": 1.2,
 		"ambient_sky": false, "ambient_color": Color(0.7, 0.76, 0.92), "ambient_energy": 0.45,
 		"fog_color": horizon, "fog_begin": 160.0, "fog_end": 700.0, "fog_curve": 1.6,
 		"fuel_color": Color(0.3, 0.9, 0.35),
 		"road": {
-			"base_color": Color(0.96, 0.9, 0.74), "edge_color": Color(0.6, 0.42, 0.24),
-			"lane_glow": 0.0, "roughness_value": 0.9, "metallic_value": 0.0,
+			"base_color": Color(0.96, 0.9, 0.74), "shoulder_color": Color(0.78, 0.62, 0.42),
+			"mark_color": Color(1.0, 1.0, 0.96), "mark_strength": 0.6, "line_strength": 0.4, "lane_glow": 0.0,
 		},
+		"kerb": Color(0.99, 0.97, 0.9),
+		"look": {"rim_color": Color(1.0, 0.96, 0.82), "rim": 0.24},
 		"verge": {
 			"width": 8.0,
 			"top": [Color(0.26, 0.6, 0.26), Color(0.3, 0.65, 0.28), Color(0.23, 0.56, 0.24)],
@@ -76,7 +82,7 @@ static func glacier() -> Dictionary:
 		"character": "Penguin on a bobsled",
 		"tagline": "Ice spires under a shimmering aurora.",
 		"arch": "ice",
-		"trail": {"color": Color(0.95, 0.98, 1.0, 0.9), "size": 0.14, "gravity": -3.0, "glow": false},
+		"trail": {"color": Color(0.96, 0.98, 1.0, 0.7), "size": 0.14, "gravity": -3.0, "glow": false},
 		"player": "sled",
 		"fuel": "fish",
 		"sky": {
@@ -87,14 +93,16 @@ static func glacier() -> Dictionary:
 			"nebula_a": Color(0.2, 1.0, 0.75), "nebula_b": Color(0.6, 0.35, 1.0), "nebula_amount": 0.7,
 		},
 		"sun_elevation": 25.0, "sun_azimuth": 30.0,
-		"light_color": Color(1.0, 0.92, 0.88), "light_energy": 1.3,
-		"ambient_sky": true, "ambient_color": Color.WHITE, "ambient_energy": 0.55,
+		"light_color": Color(1.0, 0.92, 0.88), "light_energy": 1.12,
+		"ambient_sky": false, "ambient_color": Color(0.72, 0.8, 1.0), "ambient_energy": 0.6,
 		"fog_color": Color(0.42, 0.52, 0.95), "fog_begin": 140.0, "fog_end": 600.0, "fog_curve": 1.5,
 		"fuel_color": Color(0.2, 0.9, 1.0),
 		"road": {
-			"base_color": Color(0.8, 0.92, 1.0), "edge_color": Color(0.35, 0.6, 0.9),
-			"lane_glow": 0.0, "roughness_value": 0.9, "metallic_value": 0.0,
+			"base_color": Color(0.8, 0.92, 1.0), "shoulder_color": Color(0.5, 0.72, 0.98),
+			"mark_color": Color(1.0, 1.0, 1.0), "mark_strength": 0.7, "line_strength": 0.4, "lane_glow": 0.0,
 		},
+		"kerb": Color(0.96, 0.98, 1.0),
+		"look": {"rim_color": Color(0.7, 1.0, 0.94), "rim": 0.32},
 		"verge": {
 			"width": 8.0,
 			"top": [Color(0.95, 0.97, 1.0), Color(0.88, 0.93, 1.0), Color(0.92, 0.95, 1.0)],
@@ -117,27 +125,29 @@ static func canyon() -> Dictionary:
 		"character": "Gecko in a dune buggy",
 		"tagline": "Sun-baked mesas, cacti and hot-air balloons.",
 		"arch": "sandstone",
-		"trail": {"color": Color(0.93, 0.7, 0.45, 0.8), "size": 0.2, "gravity": -3.0, "glow": false},
+		"trail": {"color": Color(0.98, 0.86, 0.68, 0.55), "size": 0.2, "gravity": -3.0, "glow": false},
 		"player": "buggy",
 		"fuel": "jerrycan",
 		"sky": {
 			"zenith_color": Color(0.6, 0.72, 0.88), "horizon_color": horizon,
 			"ground_color": Color(0.98, 0.78, 0.5), "sea_amount": 0.5, "sea_glint": Color(1.0, 0.9, 0.7),
-			"sun_color": Color(1.0, 0.98, 0.88), "sun_size": 0.08, "sun_glow": 0.7,
+			"sun_color": Color(1.0, 0.98, 0.88), "sun_size": 0.08, "sun_glow": 0.5,
 			"cloud_color": Color(1.0, 0.95, 0.86), "cloud_shade": Color(0.98, 0.8, 0.66), "cloud_amount": 0.15,
 		},
 		"sun_elevation": 30.0, "sun_azimuth": -30.0,
-		"light_color": Color(1.0, 0.9, 0.72), "light_energy": 1.35,
-		"ambient_sky": false, "ambient_color": Color(0.8, 0.6, 0.5), "ambient_energy": 0.45,
+		"light_color": Color(1.0, 0.92, 0.78), "light_energy": 1.05,
+		"ambient_sky": false, "ambient_color": Color(0.84, 0.62, 0.52), "ambient_energy": 0.42,
 		"fog_color": horizon, "fog_begin": 180.0, "fog_end": 640.0, "fog_curve": 1.5,
 		"fuel_color": Color(0.3, 0.9, 0.35),
 		"road": {
-			"base_color": Color(1.0, 0.95, 0.86), "edge_color": Color(0.64, 0.36, 0.22),
-			"lane_glow": 0.0, "roughness_value": 0.9, "metallic_value": 0.0,
+			"base_color": Color(1.0, 0.96, 0.9), "shoulder_color": Color(0.9, 0.7, 0.5),
+			"mark_color": Color(0.9, 0.72, 0.54), "mark_strength": 0.5, "line_strength": 0.4, "lane_glow": 0.0,
 		},
+		"kerb": Color(0.93, 0.62, 0.42),
+		"look": {"rim_color": Color(1.0, 0.9, 0.7), "rim": 0.26},
 		"verge": {
 			"width": 7.0,
-			"top": [Color(0.98, 0.78, 0.46), Color(0.95, 0.73, 0.42), Color(1.0, 0.82, 0.52)],
+			"top": [Color(0.95, 0.72, 0.42), Color(0.92, 0.68, 0.38), Color(0.97, 0.76, 0.46)],
 			"cliff": [Color(0.9, 0.55, 0.3), Color(0.8, 0.45, 0.26), Color(0.96, 0.66, 0.38), Color(0.86, 0.5, 0.28)],
 		},
 		"block": "saguaro", "hurdle": "ranch_fence",
@@ -169,14 +179,16 @@ static func volcano() -> Dictionary:
 			"star_amount": 0.3, "star_everywhere": 0.0,
 		},
 		"sun_elevation": 38.0, "sun_azimuth": 30.0,
-		"light_color": Color(1.0, 0.76, 0.6), "light_energy": 1.3,
+		"light_color": Color(1.0, 0.76, 0.6), "light_energy": 1.2,
 		"ambient_sky": false, "ambient_color": Color(0.58, 0.44, 0.72), "ambient_energy": 0.45,
 		"fog_color": horizon, "fog_begin": 130.0, "fog_end": 600.0, "fog_curve": 1.5,
 		"fuel_color": Color(0.95, 0.95, 1.0),
 		"road": {
-			"base_color": Color(0.88, 0.85, 0.88), "edge_color": Color(0.22, 0.18, 0.26),
-			"lane_glow": 0.0, "roughness_value": 0.9, "metallic_value": 0.0,
+			"base_color": Color(0.88, 0.85, 0.88), "shoulder_color": Color(0.56, 0.48, 0.62),
+			"mark_color": Color(1.0, 0.98, 1.0), "mark_strength": 0.6, "line_strength": 0.4, "lane_glow": 0.0,
 		},
+		"kerb": Color(0.4, 0.34, 0.46),
+		"look": {"rim_color": Color(1.0, 0.62, 0.34), "rim": 0.34},
 		"verge": {
 			"width": 7.0,
 			"top": [Color(0.22, 0.19, 0.27), Color(0.26, 0.22, 0.3), Color(0.2, 0.17, 0.25)],
@@ -211,14 +223,16 @@ static func space() -> Dictionary:
 			"nebula_a": Color(0.2, 0.6, 0.66), "nebula_b": Color(0.42, 0.3, 0.78), "nebula_amount": 0.5,
 		},
 		"sun_elevation": 20.0, "sun_azimuth": 40.0,
-		"light_color": Color(1.0, 0.95, 0.88), "light_energy": 1.6,
+		"light_color": Color(1.0, 0.95, 0.88), "light_energy": 1.35,
 		"ambient_sky": false, "ambient_color": Color(0.42, 0.52, 0.78), "ambient_energy": 0.65,
 		"fog_color": Color(0.08, 0.16, 0.26), "fog_begin": 220.0, "fog_end": 950.0, "fog_curve": 1.5,
 		"fuel_color": Color(0.2, 0.9, 1.0),
 		"road": {
-			"base_color": Color(0.88, 0.9, 0.95), "edge_color": Color(0.2, 0.4, 0.55),
-			"lane_glow": 0.5, "roughness_value": 0.9, "metallic_value": 0.0,
+			"base_color": Color(0.88, 0.9, 0.95), "shoulder_color": Color(0.56, 0.68, 0.86),
+			"mark_color": Color(0.55, 0.92, 1.0), "mark_strength": 0.75, "line_strength": 0.5, "lane_glow": 0.6,
 		},
+		"kerb": Color(0.72, 0.84, 0.98),
+		"look": {"rim_color": Color(0.6, 0.9, 1.0), "rim": 0.36},
 		"verge": null,
 		"side_color": Color(0.14, 0.22, 0.34),
 		"block": "meteoroid", "hurdle": "laser",

@@ -24,8 +24,12 @@ const KEEP_SAMPLES_BEHIND := 1000
 const TRIM_SAMPLES_AT := 1400
 const REBASE_DISTANCE := 1500.0
 const HALF_WIDTH := 3.9
-const SIDE_TOP := 0.0
-const SIDE_BOTTOM := -1.2
+## A low rounded kerb runs along each edge of the road; its outer face drops below the ground
+## beside it (or well below the road where there is no ground, as in space).
+const KERB_WIDTH := 0.26
+const KERB_HEIGHT := 0.07
+const KERB_SKIRT := -0.45
+const KERB_SKIRT_OPEN := -1.2
 const MAX_TURN := 0.055    # radians of heading change per metre
 ## The road may swing this far (radians) either side of straight ahead. Past HEADING_SOFT,
 ## turning further out is damped, reaching zero at HEADING_MAX. The track therefore always makes
@@ -44,6 +48,8 @@ const GATE_BOTTOM := 0.05
 const GATE_TOP := GATE_BOTTOM + 2.7
 const SOLID_SIZE := Vector3(2.1, 2.4, 1.2)
 const LOW_SIZE := Vector3(2.2, 0.55, 0.35)
+## Height of an orb's centre above the road.
+const ORB_HEIGHT := 0.8
 
 ## Obstacle rows, sorted by distance: {s, cells, node, meshes, done}.
 var rows: Array[Dictionary] = []
@@ -72,11 +78,15 @@ var _last_options: Array[Dictionary] = []
 var _next_fuel_s := FIRST_FUEL
 var _fuel_wave := 0
 
-var _side_material := StandardMaterial3D.new()
+var _kerb_material: ShaderMaterial
+var _kerb_color := Color.WHITE
+var _skirt_color := Color.GRAY
 var _orb_material := ShaderMaterial.new()
+var _shadow_material := Look.blob()
+var _halo_mesh := Look.patch(2.6, 0.03, Look.blob(true))
 var _gate_mesh := QuadMesh.new()
 var _gem_meshes: Array[ArrayMesh] = []
-## Per power kind: {mesh, halo, beam}, built once.
+## Per power kind: {mesh, beam}, built once.
 var _power_looks := {}
 
 
@@ -84,18 +94,16 @@ func _ready() -> void:
 	road_material.shader = RoadShader
 	road_material.set_shader_parameter("lane_width", Defs.LANE_WIDTH)
 	road_material.set_shader_parameter("half_width", HALF_WIDTH)
-	_side_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_side_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	gate_material.shader = GateShader
 	gate_material.set_shader_parameter("size", GATE_SIZE)
 	gate_material.render_priority = 1
 	_orb_material.shader = OrbShader
-	_orb_material.next_pass = Scenery.outline_material(1.18, true)
 
 	_gate_mesh.size = GATE_SIZE
 	_gate_mesh.material = gate_material
 	for slot in Defs.COLORS.size():
-		_gem_meshes.append(Obstacles.gem(slot, _orb_material))
+		# Each gem carries its own soft shadow on the road beneath it.
+		_gem_meshes.append(Look.patch(1.0, 0.03 - ORB_HEIGHT, _shadow_material, Obstacles.gem(slot, _orb_material)))
 	_build_power_looks()
 
 	for noise: FastNoiseLite in [_turn_noise, _hill_noise]:
@@ -109,7 +117,9 @@ func set_theme(theme: Dictionary) -> void:
 	scenery = Scenery.new(self, theme)
 	for key: String in theme.road:
 		road_material.set_shader_parameter(key, theme.road[key])
-	_side_material.albedo_color = theme.get("side_color", Color.GRAY)
+	_kerb_material = Look.soft(theme.look)
+	_kerb_color = theme.kerb
+	_skirt_color = theme.get("side_color", _kerb_color.darkened(0.3))
 
 
 func set_symbols_visible(show: bool) -> void:
@@ -320,9 +330,10 @@ func _maybe_rebase(s: float) -> void:
 func _build_chunk(c: int) -> void:
 	var first := c * CHUNK
 	var road := SurfaceTool.new()
-	var sides := SurfaceTool.new()
+	var kerb := SurfaceTool.new()
 	road.begin(Mesh.PRIMITIVE_TRIANGLES)
-	sides.begin(Mesh.PRIMITIVE_TRIANGLES)
+	kerb.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var skirt := KERB_SKIRT if scenery.has_verge() else KERB_SKIRT_OPEN
 	for k in CHUNK + 1:
 		var i := first + k
 		var b := Basis(_rot[i - _base])
@@ -335,22 +346,26 @@ func _build_chunk(c: int) -> void:
 		road.set_uv(Vector2(1.0, v))
 		road.add_vertex(p + b.x * HALF_WIDTH)
 		for side in [-1.0, 1.0]:
-			var edge: Vector3 = p + b.x * HALF_WIDTH * side
-			sides.set_uv(Vector2(v, 0.0))
-			sides.add_vertex(edge + b.y * SIDE_BOTTOM)
-			sides.set_uv(Vector2(v, 1.0))
-			sides.add_vertex(edge + b.y * SIDE_TOP)
+			# Across the kerb from the road outwards: foot, inner top, outer top, bottom of
+			# the outer face.
+			var out: Vector3 = b.x * side
+			var edge: Vector3 = p + out * HALF_WIDTH
+			_kerb_vertex(kerb, edge - out * KERB_WIDTH, b.y - out, _kerb_color)
+			_kerb_vertex(kerb, edge - out * (KERB_WIDTH - 0.07) + b.y * KERB_HEIGHT, b.y * 2.0 - out, _kerb_color)
+			_kerb_vertex(kerb, edge + b.y * KERB_HEIGHT, b.y + out, _kerb_color)
+			_kerb_vertex(kerb, edge + out * 0.03 + b.y * skirt, out, _skirt_color)
 	for k in CHUNK:
 		var a := k * 2
 		_quad(road, a, a + 2, a + 3, a + 1)
-		var r := k * 4
-		_quad(sides, r, r + 4, r + 5, r + 1)
-		_quad(sides, r + 2, r + 6, r + 7, r + 3)
+		var r := k * 8
+		for strip in 3:
+			# Left kerb runs outer-to-inner so that both kerbs face up and out.
+			_quad(kerb, r + strip + 1, r + 9 + strip, r + 8 + strip, r + strip)
+			_quad(kerb, r + 4 + strip, r + 12 + strip, r + 13 + strip, r + 5 + strip)
 	road.set_material(road_material)
-	sides.set_material(_side_material)
+	kerb.set_material(_kerb_material)
 	var mesh := road.commit()
-	if not scenery.has_verge():
-		sides.commit(mesh)
+	kerb.commit(mesh)
 
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
@@ -358,6 +373,12 @@ func _build_chunk(c: int) -> void:
 	add_child(mi)
 	scenery.decorate_chunk(mi, first, CHUNK)
 	_chunks.append({"end": (first + CHUNK) * STEP, "node": mi})
+
+
+func _kerb_vertex(st: SurfaceTool, position: Vector3, normal: Vector3, color: Color) -> void:
+	st.set_color(color)
+	st.set_normal(normal.normalized())
+	st.add_vertex(position)
 
 
 func _quad(st: SurfaceTool, a: int, b: int, c: int, d: int) -> void:
@@ -532,20 +553,23 @@ func place_power(kind: Powers.Kind, from: float, to: float, near_lane: int) -> b
 	add_child(node)
 	var frame := frame_at(slot.s)
 	node.transform = Transform3D(frame.basis, frame.origin + frame.basis.x * Defs.lane_x(slot.lane))
-	for part: Mesh in [look.halo, look.beam]:
-		var mi := MeshInstance3D.new()
-		mi.mesh = part
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		node.add_child(mi)
-		if part == look.beam:
-			# Taller and slimmer than a fuel beam: rare things stand out from far away.
-			mi.scale = Vector3(0.7, 2.5, 0.7)
+	var color: Color = Powers.info(kind).color
+	var halo := _halo(node, _halo_mesh, color)
+	var pulse := halo.create_tween().set_loops()
+	pulse.tween_property(halo, "scale", Vector3.ONE * 1.25, 0.5).set_trans(Tween.TRANS_SINE)
+	pulse.tween_property(halo, "scale", Vector3.ONE, 0.5).set_trans(Tween.TRANS_SINE)
+	var beam := MeshInstance3D.new()
+	beam.mesh = look.beam
+	beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Taller and slimmer than a fuel beam: rare things stand out from far away.
+	beam.scale = Vector3(0.7, 2.5, 0.7)
+	node.add_child(beam)
 	var item := MeshInstance3D.new()
 	item.mesh = look.mesh
 	item.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	item.position = Vector3(0.0, 1.25, 0.0)
 	item.scale = Vector3.ONE * 1.3
-	item.set_instance_shader_parameter("color", Powers.info(kind).color)
+	item.set_instance_shader_parameter("color", color)
 	node.add_child(item)
 	if kind == Powers.Kind.PRISM:
 		# The Prism Charge cycles through the rainbow, like Overdrive.
@@ -577,10 +601,7 @@ func _spawn_fuel(s: float, lane: int) -> void:
 	add_child(node)
 	var frame := frame_at(s)
 	node.transform = Transform3D(frame.basis, frame.origin + frame.basis.x * Defs.lane_x(lane))
-	var halo := MeshInstance3D.new()
-	halo.mesh = scenery.fuel_halo_mesh
-	halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	node.add_child(halo)
+	var halo := _halo(node, _halo_mesh, scenery.theme.fuel_color)
 	var beam := MeshInstance3D.new()
 	beam.mesh = scenery.fuel_beam_mesh
 	beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -593,10 +614,20 @@ func _spawn_fuel(s: float, lane: int) -> void:
 	var spin := item.create_tween().set_loops()
 	spin.tween_property(item, "rotation:y", TAU, 1.6).as_relative()
 	var pulse := halo.create_tween().set_loops()
-	pulse.tween_property(halo, "scale", Vector3.ONE * 1.25, 0.5)
-	pulse.tween_property(halo, "scale", Vector3.ONE, 0.5)
+	pulse.tween_property(halo, "scale", Vector3.ONE * 1.25, 0.5).set_trans(Tween.TRANS_SINE)
+	pulse.tween_property(halo, "scale", Vector3.ONE, 0.5).set_trans(Tween.TRANS_SINE)
 	var entry := {"s": s, "lane": lane, "node": node, "done": false}
 	fuels.insert(fuels.bsearch_custom(entry, func(a: Dictionary, b: Dictionary) -> bool: return a.s < b.s), entry)
+
+
+## A glowing ring on the road around a pickup, in the pickup's colour.
+func _halo(parent: Node3D, mesh: Mesh, color: Color) -> MeshInstance3D:
+	var halo := MeshInstance3D.new()
+	halo.mesh = mesh
+	halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	halo.set_instance_shader_parameter("shade", Color(color.r, color.g, color.b, 0.85))
+	parent.add_child(halo)
+	return halo
 
 
 ## Spawns a line of orbs and returns its lane (or -1 if there was no room).
@@ -611,7 +642,9 @@ func _spawn_orbs(from: float, to: float) -> int:
 		mi.mesh = _gem_meshes[color]
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mi)
-		mi.position = point(s, Defs.lane_x(lane), 0.8)
+		# Aligned with the road, so the gem's shadow lies flat on it.
+		var frame := frame_at(s)
+		mi.transform = Transform3D(frame.basis, frame * Vector3(Defs.lane_x(lane), ORB_HEIGHT, 0.0))
 		mi.set_instance_shader_parameter("color", Defs.COLORS[color])
 		orbs.append({"s": s, "lane": lane, "color": color, "node": mi, "done": false})
 		s += 3.5
@@ -637,24 +670,11 @@ func _free_behind(limit: float) -> void:
 			orb.node.queue_free()
 
 
-## Each power kind's gem (spinning, outlined, tinted per instance), with a halo and a tall
-## light beam in its colour so it can be spotted from far away.
+## Each power kind's gem (spinning, tinted per instance) and a tall light beam in its colour,
+## so it can be spotted from far away.
 func _build_power_looks() -> void:
 	for kind: Powers.Kind in Powers.INFO:
-		var color: Color = Powers.info(kind).color
-		var halo_material := StandardMaterial3D.new()
-		halo_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		halo_material.vertex_color_use_as_albedo = true
-		halo_material.albedo_color = color * 1.4
-		var beam_material := StandardMaterial3D.new()
-		beam_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		beam_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		beam_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-		beam_material.cull_mode = BaseMaterial3D.CULL_DISABLED
-		beam_material.vertex_color_use_as_albedo = true
-		beam_material.albedo_color = Color(color.r, color.g, color.b, 0.45)
 		_power_looks[kind] = {
 			"mesh": Powers.mesh(kind, _orb_material),
-			"halo": Props.build("fuel_halo", 6, halo_material),
-			"beam": Props.build("fuel_beam", 7, beam_material),
+			"beam": Look.beam_mesh(0.7, 4.0, Look.beam(Powers.info(kind).color, 0.32)),
 		}
