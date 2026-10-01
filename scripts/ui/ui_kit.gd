@@ -289,6 +289,18 @@ static func mission_row(mission: Dictionary, value: int) -> PanelContainer:
 	return chip
 
 
+## Lets a touch that starts on `node` or anything inside it also reach the scroll container
+## around it. Panels and buttons normally keep a touch to themselves, which is why a list would
+## only scroll when dragged by the gaps between its rows. Buttons still work: when a drag turns
+## into a scroll, the engine cancels the press. Sliders keep their touches, so adjusting one
+## never scrolls the list.
+static func pass_touches(node: Node) -> void:
+	if node is Control and not node is Slider and (node as Control).mouse_filter == Control.MOUSE_FILTER_STOP:
+		(node as Control).mouse_filter = Control.MOUSE_FILTER_PASS
+	for child in node.get_children():
+		pass_touches(child)
+
+
 static func vbox(separation := 16) -> VBoxContainer:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", separation)

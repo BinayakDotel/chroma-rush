@@ -11,6 +11,7 @@ func _is_modal() -> bool:
 
 func build() -> void:
 	dim(0.55)
+	closes_on_outside_tap = true
 	var content := centered_card(600, 24)
 	content.add_child(header("MISSIONS"))
 	_list = UiKit.vbox(12)

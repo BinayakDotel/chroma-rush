@@ -13,18 +13,13 @@ func _is_modal() -> bool:
 
 func build() -> void:
 	dim(0.55)
+	closes_on_outside_tap = true
 	var content := centered_card(600, 24)
 	var pill := UiKit.pill(Color(0.1, 0.05, 0.22, 0.85), Vector2(14, 4))
 	_shards = UiKit.shard_amount(Profile.shards, 24)
 	pill.add_child(_shards)
 	content.add_child(header("UPGRADES", pill))
-	var scroll := ScrollContainer.new()
-	scroll.name = "Scroll"
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	content.add_child(scroll)
-	_list = UiKit.vbox(12)
-	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(_list)
+	_list = scroll_list(content)
 	var bank := UiKit.hbox(10)
 	bank.alignment = BoxContainer.ALIGNMENT_CENTER
 	bank.add_child(UiIcon.make("gem", Powers.info(Powers.Kind.PHOENIX).color, Vector2(30, 30)))

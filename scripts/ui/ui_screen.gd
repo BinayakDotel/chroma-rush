@@ -4,6 +4,8 @@ extends Control
 ## layout(), and may override handle_back(). Overlays call dim() to darken what is behind them.
 
 var ui: UiRoot
+## Overlays that are just a card of options close when the player taps outside the card.
+var closes_on_outside_tap := false
 var _tween: Tween
 
 
@@ -34,6 +36,27 @@ func appear() -> void:
 		_tween.kill()
 	_tween = create_tween()
 	_tween.tween_property(self, "modulate:a", 1.0, 0.16)
+	# Cards pop in: slightly small, then up to size with a little overshoot.
+	var card: Control = find_child("Card", true, false)
+	if card:
+		card.scale = Vector2.ONE * 0.92
+		_pop.call_deferred(card)
+
+
+func _pop(card: Control) -> void:
+	if not is_instance_valid(card):
+		return
+	card.pivot_offset = card.size * 0.5
+	var pop := card.create_tween()
+	pop.tween_property(card, "scale", Vector2.ONE, 0.24).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+func _gui_input(event: InputEvent) -> void:
+	# Only touches that land outside the card reach the screen itself.
+	if closes_on_outside_tap and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		accept_event()
+		if not handle_back():
+			close()
 
 
 func disappear(free_after: bool) -> void:
@@ -82,6 +105,24 @@ func centered_card(max_width: float, padding := 30) -> VBoxContainer:
 	var content := UiKit.vbox(18)
 	card.add_child(content)
 	return content
+
+
+## A vertically scrolling list added to `parent`. It scrolls from anywhere a finger lands,
+## including on rows and buttons (see UiKit.pass_touches), and ignores the first few pixels of
+## movement so a tap never nudges it. Returns the list to fill; its scroll container is named
+## "Scroll" for layout().
+func scroll_list(parent: Control, separation := 12) -> VBoxContainer:
+	var scroll := ScrollContainer.new()
+	scroll.name = "Scroll"
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.scroll_deadzone = 12
+	parent.add_child(scroll)
+	var list := UiKit.vbox(separation)
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	# Rows are often filled in after they are added, so wait until the end of the frame.
+	list.child_entered_tree.connect(func(child: Node) -> void: UiKit.pass_touches.call_deferred(child))
+	return list
 
 
 func card_width(portrait: bool, landscape_width := 620.0) -> float:
