@@ -16,27 +16,27 @@ const STATS: Array[String] = ["gates", "metres", "orbs", "hurdles", "fuel", "pow
 const REWARDS: Array[int] = [60, 100, 150, 200]
 const MISSIONS_PER_TIER := 3
 
-## `text` takes the target; `targets` are per tier.
+## `text` and `brief` (a few words, for badges) take the target; `targets` are per tier.
 const KINDS := {
-	"gates_run": {"stat": "gates", "scope": "run", "icon": "star", "text": "Pass %s gates in one run",
+	"gates_run": {"stat": "gates", "scope": "run", "icon": "star", "text": "Pass %s gates in one run", "brief": "%s gates in a run",
 		"targets": [15, 30, 50, 80]},
-	"metres_run": {"stat": "metres", "scope": "run", "icon": "motion", "text": "Drive %s m in one run",
+	"metres_run": {"stat": "metres", "scope": "run", "icon": "motion", "text": "Drive %s m in one run", "brief": "%s m in a run",
 		"targets": [800, 1500, 3000, 5000]},
-	"orbs_run": {"stat": "orbs", "scope": "run", "icon": "circle", "text": "Collect %s orbs in one run",
+	"orbs_run": {"stat": "orbs", "scope": "run", "icon": "circle", "text": "Collect %s orbs in one run", "brief": "%s orbs in a run",
 		"targets": [20, 40, 70, 110]},
-	"hurdles_run": {"stat": "hurdles", "scope": "run", "icon": "up", "text": "Jump %s hurdles in one run",
+	"hurdles_run": {"stat": "hurdles", "scope": "run", "icon": "up", "text": "Jump %s hurdles in one run", "brief": "%s hurdles in a run",
 		"targets": [3, 6, 10, 16]},
-	"orbs_total": {"stat": "orbs", "scope": "total", "icon": "circle", "text": "Collect %s orbs",
+	"orbs_total": {"stat": "orbs", "scope": "total", "icon": "circle", "text": "Collect %s orbs", "brief": "%s orbs",
 		"targets": [60, 140, 260, 420]},
-	"fuel_total": {"stat": "fuel", "scope": "total", "icon": "fuel", "text": "Pick up fuel %s times",
+	"fuel_total": {"stat": "fuel", "scope": "total", "icon": "fuel", "text": "Pick up fuel %s times", "brief": "%s fuel pickups",
 		"targets": [5, 10, 18, 28]},
-	"powers_total": {"stat": "powers", "scope": "total", "icon": "gem", "text": "Collect %s power gems",
+	"powers_total": {"stat": "powers", "scope": "total", "icon": "gem", "text": "Collect %s power gems", "brief": "%s power gems",
 		"targets": [2, 4, 6, 10]},
-	"smashes_total": {"stat": "smashes", "scope": "total", "icon": "bolt", "text": "Smash %s obstacles in Overdrive",
+	"smashes_total": {"stat": "smashes", "scope": "total", "icon": "bolt", "text": "Smash %s obstacles in Overdrive", "brief": "%s smashes",
 		"targets": [3, 8, 16, 30]},
-	"overdrives_total": {"stat": "overdrives", "scope": "total", "icon": "bolt", "text": "Use Prism Overdrive %s times",
+	"overdrives_total": {"stat": "overdrives", "scope": "total", "icon": "bolt", "text": "Use Prism Overdrive %s times", "brief": "%s Overdrives",
 		"targets": [2, 4, 6, 10]},
-	"metres_total": {"stat": "metres", "scope": "total", "icon": "motion", "text": "Drive %s m in total",
+	"metres_total": {"stat": "metres", "scope": "total", "icon": "motion", "text": "Drive %s m in total", "brief": "%s m in total",
 		"targets": [3000, 6000, 12000, 20000]},
 }
 
@@ -59,6 +59,11 @@ static func refill() -> void:
 
 static func describe(mission: Dictionary) -> String:
 	return str(KINDS[mission.kind].text) % UiKit.thousands(int(mission.target))
+
+
+## The mission in a few words, for places with little room.
+static func brief(mission: Dictionary) -> String:
+	return str(KINDS[mission.kind].brief) % UiKit.thousands(int(mission.target))
 
 
 static func icon(mission: Dictionary) -> String:
