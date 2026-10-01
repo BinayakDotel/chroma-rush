@@ -1,12 +1,17 @@
 extends UiScreen
-## End of a run: score, best, stats and shards earned, with an optional second chance (a
-## banked Phoenix gem, or a rewarded ad) and double-shards offer, then RETRY or HOME.
+## End of a run: score, best, stats and shards earned, how the missions stand and what the
+## shards are building towards, with an optional second chance (a banked Phoenix gem, or a
+## rewarded ad) and double-shards offer, then RETRY or HOME.
 
 var _title: Label
 var _score: Label
 var _best: PanelContainer
 var _best_label: Label
 var _stats: GridContainer
+var _missions: VBoxContainer
+var _goal: PanelContainer
+var _goal_label: Label
+var _goal_bar: ProgressBar
 var _revive: Button
 var _token: Button
 var _double: Button
@@ -36,6 +41,19 @@ func build() -> void:
 	_stats.add_theme_constant_override("h_separation", 14)
 	_stats.add_theme_constant_override("v_separation", 10)
 	_content.add_child(_stats)
+	_missions = UiKit.vbox(8)
+	_content.add_child(_missions)
+	# What the shards are for: progress towards the next upgrade or world.
+	_goal = UiKit.card(12, Color(1.0, 0.95, 0.78), 22)
+	(_goal.get_theme_stylebox("panel") as StyleBoxFlat).shadow_size = 0
+	var goal_box := UiKit.vbox(6)
+	_goal.add_child(goal_box)
+	_goal_label = UiKit.centered(UiKit.text("", 17, true, 900))
+	goal_box.add_child(_goal_label)
+	_goal_bar = UiKit.bar(0, 12, UiKit.GOLD, Color(0.9, 0.82, 0.6))
+	(_goal_bar.get_theme_stylebox("background") as StyleBoxFlat).set_border_width_all(0)
+	goal_box.add_child(_goal_bar)
+	_content.add_child(_goal)
 
 	_token = UiKit.button("REVIVE", "sky", Vector2(0, 76), 32, "gem")
 	_token.pressed.connect(func() -> void:
@@ -64,7 +82,8 @@ func build() -> void:
 
 
 ## `summary` keys: title, score, best, new_best, metres, gates, combo, shards, can_revive,
-## revive_tokens (banked Phoenix gems usable now, 0 if none), can_double.
+## revive_tokens (banked Phoenix gems usable now, 0 if none), can_double, missions (a list of
+## {mission, value}), goal ({name, cost, have}, or {} when there is nothing left to buy).
 func show_summary(summary: Dictionary) -> void:
 	_summary = summary
 	_title.text = summary.title
@@ -77,6 +96,22 @@ func show_summary(summary: Dictionary) -> void:
 	_stat("check", str(summary.gates), "GATES")
 	_stat("star", "x%d" % summary.combo, "BEST COMBO")
 	_stat("shard", "+%s" % UiKit.thousands(summary.shards), "SHARDS")
+	for child in _missions.get_children():
+		child.queue_free()
+	for entry: Dictionary in summary.get("missions", []):
+		_missions.add_child(UiKit.mission_row(entry.mission, int(entry.value)))
+	var goal: Dictionary = summary.get("goal", {})
+	_goal.visible = not goal.is_empty()
+	if not goal.is_empty():
+		var have := int(goal.have)
+		var cost := int(goal.cost)
+		_goal_bar.value = clampf(float(have) / maxf(cost, 1.0), 0.0, 1.0)
+		if have >= cost:
+			_goal_label.text = "YOU CAN AFFORD  %s!" % goal.name
+			_goal_label.label_settings.font_color = UiKit.STYLES.primary[1]
+		else:
+			_goal_label.text = "%s MORE SHARDS FOR  %s" % [UiKit.thousands(cost - have), goal.name]
+			_goal_label.label_settings.font_color = Color(0.5, 0.32, 0.05)
 	var tokens: int = summary.get("revive_tokens", 0)
 	_token.visible = tokens > 0
 	_token.disabled = false
@@ -138,3 +173,6 @@ func layout(portrait: bool) -> void:
 	var card: Control = find_child("Card", true, false)
 	if card:
 		card.custom_minimum_size.x = minf(card_width(portrait), 580.0)
+	# A short screen has no room for the mission list; the missions screen still has it.
+	if _missions:
+		_missions.visible = portrait and get_viewport_rect().size.y >= 1400.0

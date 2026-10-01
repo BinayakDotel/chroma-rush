@@ -1,6 +1,6 @@
 extends UiScreen
-## Landing page: logo, shard counter, settings / shop / help, and the world picker with its
-## PLAY or unlock button. The 3D scene behind shows the current world's vehicle circling.
+## Landing page: logo, shard counter, missions / upgrades / settings / shop / help, and the
+## world picker with its PLAY or unlock button. The 3D scene behind shows the current world's vehicle circling.
 
 var _logo_letters: Array[Label] = []
 var _logo: VBoxContainer
@@ -25,10 +25,10 @@ var _t := 0.0
 
 
 func build() -> void:
-	var top := UiKit.hbox(12)
+	var top := UiKit.hbox(10)
 	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	top.offset_left = 24
-	top.offset_right = -24
+	top.offset_left = 20
+	top.offset_right = -20
 	top.offset_top = 20
 	add_child(top)
 	var pill := UiKit.pill(Color(0.1, 0.05, 0.22, 0.75), Vector2(18, 6))
@@ -45,6 +45,9 @@ func build() -> void:
 	_tokens.add_child(token_row)
 	top.add_child(_tokens)
 	top.add_child(UiKit.spacer())
+	var missions := UiKit.icon_button("target", "primary", 64)
+	missions.pressed.connect(ui.open_missions)
+	top.add_child(missions)
 	var upgrades := UiKit.icon_button("upgrade", "gold", 64)
 	upgrades.pressed.connect(ui.open_upgrades)
 	top.add_child(upgrades)
