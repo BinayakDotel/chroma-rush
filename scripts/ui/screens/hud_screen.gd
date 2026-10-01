@@ -51,6 +51,10 @@ var _meter_ready := false
 var _meter_active := false
 var _portrait := false
 var _t := 0.0
+var _shown_score := -1
+var _shown_multiplier := -1
+var _shown_metres := -1
+var _shown_kmh := -1
 
 
 func build() -> void:
@@ -229,15 +233,25 @@ func reset() -> void:
 	_hint.visible = false
 
 
+## These are called every frame: text is only rebuilt when the number on screen changes.
 func set_score(score: float, multiplier: int) -> void:
-	_score.text = UiKit.thousands(int(score))
-	_multiplier_label.text = "x%d" % multiplier
-	_multiplier.visible = multiplier > 1
+	if int(score) != _shown_score:
+		_shown_score = int(score)
+		_score.text = UiKit.thousands(_shown_score)
+	if multiplier != _shown_multiplier:
+		_shown_multiplier = multiplier
+		_multiplier_label.text = "x%d" % multiplier
+		_multiplier.visible = multiplier > 1
 
 
 func set_distance(metres: int, speed: float) -> void:
-	_distance.text = "%s m" % UiKit.thousands(metres)
-	_speed.text = "%d km/h" % int(speed * 3.6)
+	if metres != _shown_metres:
+		_shown_metres = metres
+		_distance.text = "%s m" % UiKit.thousands(metres)
+	var kmh := int(speed * 3.6)
+	if kmh != _shown_kmh:
+		_shown_kmh = kmh
+		_speed.text = "%d km/h" % kmh
 
 
 func set_fuel(level: float) -> void:

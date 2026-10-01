@@ -8,6 +8,10 @@ extends Node3D
 ## - chunks, rows, orbs, fuel and landmarks behind the player are freed as it passes;
 ## - a floating origin shifts the whole world back near (0, 0, 0) every REBASE_DISTANCE metres,
 ##   so 32-bit vertex positions never lose precision far from the start.
+##
+## Frame time stays even: a new chunk's road is built at once (it is cheap), but its ground and
+## props are queued and built one piece per frame. Chunks appear 400 m ahead, so they are
+## finished long before they can be seen clearly.
 
 signal rebased(offset: Vector3)
 
@@ -71,6 +75,8 @@ var _rng := RandomNumberGenerator.new()
 var _turn_noise := FastNoiseLite.new()
 var _hill_noise := FastNoiseLite.new()
 var _chunks: Array[Dictionary] = []
+## Scenery still to build for chunks already on the road (see Scenery.chunk_jobs).
+var _jobs: Array[Callable] = []
 var _next_chunk := 0
 var _last_row_s := -1.0
 ## Ways through the last row spawned (see Pacing.row_options), to space the next one fairly.
@@ -134,6 +140,7 @@ func reset(seed_value: int) -> void:
 	fuels.clear()
 	powers.clear()
 	_chunks.clear()
+	_jobs.clear()
 	_pos.clear()
 	_rot.clear()
 	_base = 0
@@ -147,6 +154,9 @@ func reset(seed_value: int) -> void:
 	_hill_noise.seed = seed_value + 7
 	scenery.reset(seed_value)
 	update(0.0)
+	# The opening stretch is visible straight away: finish all of it now.
+	while not _jobs.is_empty():
+		_jobs.pop_front().call()
 
 
 ## Generates track ahead of distance `s`, frees what is behind it and keeps the origin close.
@@ -159,6 +169,8 @@ func update(s: float) -> void:
 	while _last_row_s < built_to - Pacing.MAX_GAP:
 		_spawn_row()
 	scenery.update(s)
+	if not _jobs.is_empty():
+		_jobs.pop_front().call()
 	_free_behind(s - BEHIND)
 	_trim_samples(s)
 	_maybe_rebase(s)
@@ -369,7 +381,7 @@ func _build_chunk(c: int) -> void:
 	mi.mesh = mesh
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
-	scenery.decorate_chunk(mi, first, CHUNK)
+	_jobs.append_array(scenery.chunk_jobs(mi, first, CHUNK))
 	_chunks.append({"end": (first + CHUNK) * STEP, "node": mi})
 
 

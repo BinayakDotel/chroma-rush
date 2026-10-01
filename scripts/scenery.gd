@@ -98,18 +98,27 @@ func has_verge() -> bool:
 	return theme.verge != null
 
 
-## Adds verges and props for one road chunk under `parent`.
-func decorate_chunk(parent: Node3D, first: int, count: int) -> void:
+## The work of dressing one road chunk (the ground on each side, then the props), as separate
+## jobs so the track can spread it over several frames instead of doing it all in one.
+func chunk_jobs(parent: Node3D, first: int, count: int) -> Array[Callable]:
+	var jobs: Array[Callable] = []
 	if not has_verge():
+		return jobs
+	for side: float in [-1.0, 1.0]:
+		jobs.append(_add_verge.bind(parent, first, count, side))
+	jobs.append(_place_near.bind(parent, first, count))
+	return jobs
+
+
+func _add_verge(parent: Node3D, first: int, count: int, side: float) -> void:
+	if not is_instance_valid(parent):
 		return
 	var kit := MeshKit.new(first)
-	for side in [-1.0, 1.0]:
-		_build_verge(kit, first, count, side)
+	_build_verge(kit, first, count, side)
 	var ground := MeshInstance3D.new()
 	ground.mesh = kit.commit(material)
 	ground.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(ground)
-	_place_near(parent, first, count)
 
 
 ## Spawns landmarks ahead of `s` and frees the ones left behind.
@@ -220,7 +229,7 @@ func _build_fence(kit: MeshKit, first: int, count: int, side: float, wood: Color
 
 func _place_near(parent: Node3D, first: int, count: int) -> void:
 	var kinds: Array = theme.near
-	if kinds.is_empty():
+	if kinds.is_empty() or not is_instance_valid(parent):
 		return
 	for side in [-1.0, 1.0]:
 		var n := int(theme.near_count * count / 40.0 * _rng.randf_range(0.7, 1.3))

@@ -199,7 +199,12 @@ static func gem(slot: int, material: Material) -> ArrayMesh:
 	var k := MeshKit.new(5 + slot, true)
 	match Defs.SYMBOLS[slot]:
 		Defs.Symbol.CIRCLE:
-			k.sphere(Vector3.ZERO, Vector3.ONE * 0.34, 2, 0.0, Color.WHITE)
+			# A lathed ball: round in outline for a third of an icosphere's triangles.
+			var profile: Array = []
+			for i in 7:
+				var a := PI * i / 6.0
+				profile.append(Vector2(sin(a) * 0.34, -cos(a) * 0.34))
+			k.lathe(Vector3.ZERO, Vector3.UP, profile, 12, Color.WHITE)
 		Defs.Symbol.TRIANGLE:
 			# Facets stay crisp: a crystal should glint.
 			k.smooth = false
