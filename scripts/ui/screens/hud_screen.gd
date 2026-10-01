@@ -29,6 +29,9 @@ var _fuel_fill: StyleBoxFlat
 var _fuel_icon: UiIcon
 var _fuel_level := 1.0
 var _distance: Label
+var _shield_badge: PanelContainer
+var _magnet_badge: PanelContainer
+var _magnet_bar: ProgressBar
 var _speed: Label
 var _hint: PanelContainer
 var _hint_label: Label
@@ -92,6 +95,18 @@ func build() -> void:
 	_fuel_bar = UiKit.bar(230, 24, Color(0.4, 0.9, 0.45))
 	_fuel_fill = _fuel_bar.get_theme_stylebox("fill")
 	fuel_row.add_child(_fuel_bar)
+	# Active power gems, under the fuel gauge.
+	var powers := UiKit.hbox(10)
+	powers.alignment = BoxContainer.ALIGNMENT_CENTER
+	powers.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	center.add_child(powers)
+	_shield_badge = _power_badge("shield", Powers.info(Powers.Kind.SHIELD).color)
+	powers.add_child(_shield_badge)
+	_magnet_badge = _power_badge("magnet", Powers.info(Powers.Kind.MAGNET).color)
+	_magnet_bar = UiKit.bar(70, 10, Powers.info(Powers.Kind.MAGNET).color)
+	_magnet_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_magnet_badge.get_child(0).add_child(_magnet_bar)
+	powers.add_child(_magnet_badge)
 	top.add_child(UiKit.spacer())
 
 	var right := UiKit.vbox(2)
@@ -207,6 +222,7 @@ func reset() -> void:
 	set_score(0.0, 1)
 	set_distance(0, 0.0)
 	set_fuel(1.0)
+	set_powers(false, 0.0)
 	set_meter(0.0, false, false)
 	set_color(0)
 	set_speed_fx(0.0)
@@ -229,6 +245,24 @@ func set_fuel(level: float) -> void:
 	_fuel_bar.value = level
 	if level >= 0.25:
 		_fuel_fill.bg_color = Color(0.4, 0.9, 0.45) if level > 0.5 else Color(1.0, 0.8, 0.25)
+
+
+## Shows the held shield and the magnet's time left (0..1, hidden at 0).
+func set_powers(shield: bool, magnet: float) -> void:
+	_shield_badge.visible = shield
+	_magnet_badge.visible = magnet > 0.0
+	_magnet_bar.value = magnet
+
+
+func _power_badge(icon: String, tint: Color) -> PanelContainer:
+	var badge := UiKit.pill(Color(0.1, 0.05, 0.22, 0.7), Vector2(10, 4))
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.visible = false
+	var row := UiKit.hbox(6)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.add_child(row)
+	row.add_child(UiIcon.make(icon, tint, Vector2(28, 28)))
+	return badge
 
 
 func set_color(index: int) -> void:

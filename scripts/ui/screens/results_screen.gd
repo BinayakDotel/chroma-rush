@@ -1,6 +1,6 @@
 extends UiScreen
-## End of a run: score, best, stats and shards earned, with an optional second chance and
-## double-shards offer (both rewarded ads, both optional), then RETRY or HOME.
+## End of a run: score, best, stats and shards earned, with an optional second chance (a
+## banked Phoenix gem, or a rewarded ad) and double-shards offer, then RETRY or HOME.
 
 var _title: Label
 var _score: Label
@@ -8,6 +8,7 @@ var _best: PanelContainer
 var _best_label: Label
 var _stats: GridContainer
 var _revive: Button
+var _token: Button
 var _double: Button
 var _content: VBoxContainer
 var _summary := {}
@@ -36,6 +37,11 @@ func build() -> void:
 	_stats.add_theme_constant_override("v_separation", 10)
 	_content.add_child(_stats)
 
+	_token = UiKit.button("REVIVE", "sky", Vector2(0, 76), 32, "gem")
+	_token.pressed.connect(func() -> void:
+		_token.disabled = true
+		ui.revive_token_requested.emit())
+	_content.add_child(_token)
 	_revive = UiKit.button("SECOND CHANCE", "pink", Vector2(0, 76), 32, "film")
 	_revive.pressed.connect(func() -> void:
 		_revive.disabled = true
@@ -58,7 +64,7 @@ func build() -> void:
 
 
 ## `summary` keys: title, score, best, new_best, metres, gates, combo, shards, can_revive,
-## can_double.
+## revive_tokens (banked Phoenix gems usable now, 0 if none), can_double.
 func show_summary(summary: Dictionary) -> void:
 	_summary = summary
 	_title.text = summary.title
@@ -71,6 +77,10 @@ func show_summary(summary: Dictionary) -> void:
 	_stat("check", str(summary.gates), "GATES")
 	_stat("star", "x%d" % summary.combo, "BEST COMBO")
 	_stat("shard", "+%s" % UiKit.thousands(summary.shards), "SHARDS")
+	var tokens: int = summary.get("revive_tokens", 0)
+	_token.visible = tokens > 0
+	_token.disabled = false
+	UiKit.set_text(_token, "FREE REVIVE  (%d)" % tokens)
 	_revive.visible = summary.can_revive
 	_revive.disabled = false
 	_double.visible = summary.can_double
@@ -96,6 +106,7 @@ func show_doubled(total: int) -> void:
 
 func hide_revive() -> void:
 	_revive.visible = false
+	_token.visible = false
 
 
 func _stat(icon: String, value: String, caption: String) -> void:

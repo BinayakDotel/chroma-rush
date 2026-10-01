@@ -23,6 +23,10 @@ extends Node
 ##                         --react=<s> (default 0.7, +-25%), needs --action=<s> (default 0.25)
 ##                         per swipe or tap, and goes for a fuel pickup with probability
 ##                         --fuel-skill=<p> (default 0.8). Prints every run and a summary.
+##   --gems=<k1,k2,...>   place these power gems on the road ahead once the run starts
+##                         (shield, magnet, full_tank, prism, phoenix), for screenshots
+##   --give=<kind>         apply a power gem's effect at the start (e.g. shield)
+##   --tokens=<n>          start with this many banked revives (Phoenix gems)
 ##   --runs=<n>            with --bot=human: quit after this many runs
 ##   --max-run=<s>         with --bot=human: end a run that lasts this long (game seconds) and
 ##                         count it as survived (default 600)
@@ -53,6 +57,10 @@ func _ready() -> void:
 		Profile.mark_tutorial_done()
 		Profile.lifetime_runs = 1
 	game = get_node("Game")
+	if "--tokens" in str(OS.get_cmdline_user_args()):
+		for arg in OS.get_cmdline_user_args():
+			if arg.begins_with("--tokens="):
+				Profile.revive_tokens = int(arg.get_slice("=", 1))
 	for arg in OS.get_cmdline_user_args():
 		var parts := arg.trim_prefix("--").split("=", true, 1)
 		_args[parts[0]] = parts[1] if parts.size() > 1 else "true"
@@ -72,6 +80,9 @@ func _ready() -> void:
 		(game.get("ui") as CanvasLayer).visible = false
 	if _args.has("screen"):
 		_open_screen(str(_args.screen))
+	if _args.has("gems") or _args.has("give"):
+		await get_tree().create_timer(1.0).timeout
+		_place_gems()
 	if _args.has("flow-test"):
 		# Watchdog: a failing step must never leave the test hanging.
 		get_tree().create_timer(180.0, true, false, true).timeout.connect(func() -> void:
@@ -261,6 +272,18 @@ func _bot_finish_run() -> bool:
 		metres[metres.size() * 9 / 10], 100 * fuel_deaths / metres.size(), 100 * survived / metres.size()])
 	get_tree().quit()
 	return true
+
+
+func _place_gems() -> void:
+	var track: Track = game.get("track")
+	var distance: float = game.get("distance")
+	var at := distance + 40.0
+	for name in str(_args.get("gems", "")).split(",", false):
+		var kind: int = Powers.Kind.keys().find(name.to_upper())
+		if kind >= 0 and track.place_power(kind, at, at + 60.0, (kind % 3)):
+			at += 30.0
+	if _args.has("give"):
+		game.call("_apply_power", Powers.Kind.keys().find(str(_args.give).to_upper()))
 
 
 func _flag(name: String) -> bool:

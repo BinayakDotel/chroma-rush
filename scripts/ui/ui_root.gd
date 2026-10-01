@@ -18,6 +18,8 @@ signal home_requested
 signal color_pressed(index: int)
 signal prism_pressed
 signal revive_requested
+## Second chance paid with a banked Phoenix gem instead of an ad.
+signal revive_token_requested
 signal double_shards_requested
 signal quit_requested
 

@@ -129,6 +129,27 @@ func _draw() -> void:
 		"bolt":
 			draw_colored_polygon(PackedVector2Array([p.call(0.58, 0.04), p.call(0.2, 0.56), p.call(0.46, 0.56),
 				p.call(0.38, 0.96), p.call(0.8, 0.4), p.call(0.54, 0.4)]), color)
+		"shield":
+			var outline := PackedVector2Array([p.call(0.5, 0.04), p.call(0.9, 0.2), p.call(0.84, 0.58),
+				p.call(0.5, 0.96), p.call(0.16, 0.58), p.call(0.1, 0.2)])
+			draw_colored_polygon(outline, color)
+			draw_colored_polygon(PackedVector2Array([p.call(0.5, 0.04), p.call(0.9, 0.2), p.call(0.84, 0.58),
+				p.call(0.5, 0.96)]), color.darkened(0.18))
+		"magnet":
+			draw_arc(p.call(0.5, 0.46), s * 0.28, PI, TAU, 18, color, s * 0.2, true)
+			for side in [-1.0, 1.0]:
+				var x: float = 0.5 + side * 0.28
+				draw_line(p.call(x, 0.46), p.call(x, 0.72), color, s * 0.2)
+				draw_line(p.call(x, 0.72), p.call(x, 0.92), Color.WHITE if color.get_luminance() < 0.8 else UiKit.INK, s * 0.2)
+		"gem":
+			var crown := PackedVector2Array([p.call(0.28, 0.14), p.call(0.72, 0.14), p.call(0.94, 0.38), p.call(0.06, 0.38)])
+			var pavilion := PackedVector2Array([p.call(0.06, 0.38), p.call(0.94, 0.38), p.call(0.5, 0.94)])
+			draw_colored_polygon(crown, color.lightened(0.35))
+			draw_colored_polygon(pavilion, color)
+			draw_colored_polygon(PackedVector2Array([p.call(0.5, 0.38), p.call(0.94, 0.38), p.call(0.5, 0.94)]), color.darkened(0.2))
+			var edge := PackedVector2Array([p.call(0.28, 0.14), p.call(0.72, 0.14), p.call(0.94, 0.38), p.call(0.5, 0.94),
+				p.call(0.06, 0.38), p.call(0.28, 0.14)])
+			draw_polyline(edge, color.darkened(0.45), s * 0.05, true)
 		"graphics":
 			draw_rect(Rect2(p.call(0.08, 0.16), Vector2(0.84, 0.6) * s), color, false, w * 0.9)
 			draw_colored_polygon(PackedVector2Array([p.call(0.2, 0.66), p.call(0.42, 0.36), p.call(0.58, 0.56),
