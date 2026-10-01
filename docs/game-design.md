@@ -196,6 +196,14 @@ The art is low-poly, but it should read as a modern, soft, toy-like game, not as
 - **Linear tone mapping and soft bloom**, so the authored colours stay vivid and bright things glow.
 - **Motion on springs.** The wheels stay on the road; the body above them leans into lane changes, squashes on landing and pops on a colour change, all as spring impulses. Nothing snaps, blinks or buzzes.
 
+### Interface
+
+- **The score is the hero.** The results screen is a scoreboard, not a form: the score straight on the scene, one card with three numbers, the missions as rings and one line for what the shards are building towards, then at most one row of offers and RETRY.
+- **Actions in thumb reach.** The home screen keeps shards and settings in the top corners and puts MISSIONS, UPGRADES, SHOP and PLAY at the bottom.
+- **Readable.** Body text is bold (Nunito 700 to 900) and nothing is smaller than 18 canvas pixels, about 9 pt on a phone. Numbers that matter use the title font.
+- **Lists scroll from anywhere.** A list built with `UiScreen.scroll_list()` scrolls when dragged by a row or a button, not only by the gaps (see `UiKit.pass_touches`); a 12 px dead zone keeps taps from nudging it. Overlays that are a card of options close on a tap outside the card, and cards pop in.
+- **The logo uses the game's own pieces.** White CHROMA on a deep lip with the red orb as the O and the yellow triangle as the A; RUSH on a blue ribbon with speed streaks. It is drawn in code (`scripts/ui/logo.gd`). The app icon (`icons/icon.svg`) shows the same three shapes, glossy and without outlines.
+
 ### Performance
 
 Measured in Meadow on the desktop renderer, portrait, about four samples each:
