@@ -21,24 +21,24 @@ func build() -> void:
 	var touch := OS.has_feature("mobile")
 	_pages = [
 		{"title": "MATCH THE GATE", "icons": ["circle", "triangle", "square"], "colors": Defs.COLORS,
-			"body": "Be the gate's colour before you reach it.",
+			"body": "Every gate has a colour and a shape. Switch to the same colour before you reach it, or you crash.",
 			"controls": "Tap a colour button" if touch else "J K L or 1 2 3 picks a colour, SPACE cycles"},
 		{"title": "DODGE BLOCKS", "icons": ["back", "next"],
-			"body": "Change lanes to get around them.",
+			"body": "Rocks, ice and meteors can't be passed. Change lanes to get around them.",
 			"controls": "Swipe left or right" if touch else "A / D or the arrow keys"},
 		{"title": "JUMP HURDLES", "icons": ["up"],
-			"body": "Jump over anything low.",
+			"body": "Logs, lava and lasers sit low. Jump over them, and slam down to land sooner.",
 			"controls": "Swipe up to jump, down to slam" if touch else "W to jump, S to slam"},
 		{"title": "KEEP YOUR TANK FULL", "icons": ["fuel"],
-			"body": "Grab fuel before the tank runs dry.",
+			"body": "Fuel drains as you drive. Grab the glowing fuel pickups: each one is in a lane you can take. Nearly empty? Watch for a fuel drop.",
 			"controls": "Steer into the pickup's lane"},
 		{"title": "POWER GEMS", "icons": ["shield", "magnet", "gem"],
 			"colors": [Powers.info(Powers.Kind.SHIELD).color, Powers.info(Powers.Kind.MAGNET).color,
 				Powers.info(Powers.Kind.PHOENIX).color],
-			"body": "A shield, a magnet, or a free revive.",
+			"body": "Rare gems shine with a tall beam. Shields block a crash, magnets pull in orbs. The rare Phoenix Gem saves a free revive for later.",
 			"controls": "Steer into the gem's lane"},
 		{"title": "PRISM OVERDRIVE", "icons": ["bolt"],
-			"body": "Fill the meter, then smash through everything.",
+			"body": "Pass gates and grab orbs to fill the Prism meter. Then smash through everything: orbs from every lane fly to you for double shards!",
 			"controls": "Tap PRISM" if touch else "SHIFT or E"},
 	]
 	dim(0.6)
@@ -66,10 +66,10 @@ func build() -> void:
 	content.add_child(_dots)
 	var row := UiKit.hbox(14)
 	content.add_child(row)
-	var skip := UiKit.button("", "light", Vector2(110, 80), 34, "close")
+	var skip := UiKit.button("SKIP", "light", Vector2(150, 76), 28)
 	skip.pressed.connect(_finish)
 	row.add_child(skip)
-	_next = UiKit.button("", "primary", Vector2(0, 80), 44, "next")
+	_next = UiKit.button("NEXT", "primary", Vector2(0, 76), 34)
 	_next.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_next.pressed.connect(_advance)
 	row.add_child(_next)
@@ -101,7 +101,7 @@ func _show_page(index: int) -> void:
 	for i in _pages.size():
 		_dots.add_child(UiIcon.make("circle", UiKit.STYLES.sky[0] if i == index else Color(0.82, 0.8, 0.9), Vector2(14, 14)))
 	var last := index == _pages.size() - 1
-	(_next.get_meta("icon") as UiIcon).set_icon(("play" if _then_play else "check") if last else "next")
+	UiKit.set_text(_next, ("LET'S GO!" if _then_play else "GOT IT!") if last else "NEXT")
 
 
 func _advance() -> void:

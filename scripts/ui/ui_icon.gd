@@ -75,20 +75,6 @@ func _draw() -> void:
 		"up":
 			draw_colored_polygon(PackedVector2Array([p.call(0.5, 0.06), p.call(0.92, 0.5), p.call(0.66, 0.5),
 				p.call(0.66, 0.94), p.call(0.34, 0.94), p.call(0.34, 0.5), p.call(0.08, 0.5)]), color)
-		"down":
-			draw_colored_polygon(PackedVector2Array([p.call(0.5, 0.94), p.call(0.92, 0.5), p.call(0.66, 0.5),
-				p.call(0.66, 0.06), p.call(0.34, 0.06), p.call(0.34, 0.5), p.call(0.08, 0.5)]), color)
-		"heart":
-			draw_circle(p.call(0.3, 0.34), s * 0.22, color, true, -1.0, true)
-			draw_circle(p.call(0.7, 0.34), s * 0.22, color, true, -1.0, true)
-			draw_colored_polygon(PackedVector2Array([p.call(0.1, 0.44), p.call(0.5, 0.3), p.call(0.9, 0.44), p.call(0.5, 0.92)]), color)
-		"burst":
-			var spikes := PackedVector2Array()
-			for i in 16:
-				var a := TAU * i / 16.0
-				var r := 0.48 if i % 2 == 0 else 0.27
-				spikes.append(p.call(0.5 + cos(a) * r, 0.5 + sin(a) * r))
-			draw_colored_polygon(spikes, color)
 		"close":
 			draw_line(p.call(0.2, 0.2), p.call(0.8, 0.8), color, w * 1.5, true)
 			draw_line(p.call(0.8, 0.2), p.call(0.2, 0.8), color, w * 1.5, true)

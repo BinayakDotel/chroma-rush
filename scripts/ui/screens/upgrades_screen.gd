@@ -4,7 +4,7 @@ extends UiScreen
 
 var _list: VBoxContainer
 var _shards: HBoxContainer
-var _tokens: HBoxContainer
+var _tokens: Label
 
 
 func _is_modal() -> bool:
@@ -20,10 +20,13 @@ func build() -> void:
 	pill.add_child(_shards)
 	content.add_child(header("UPGRADES", pill))
 	_list = scroll_list(content)
-	# Banked revives (Phoenix gems): a heart, then a gem for each slot, lit when it is filled.
-	_tokens = UiKit.hbox(10)
-	_tokens.alignment = BoxContainer.ALIGNMENT_CENTER
-	content.add_child(_tokens)
+	var bank := UiKit.hbox(10)
+	bank.alignment = BoxContainer.ALIGNMENT_CENTER
+	bank.add_child(UiIcon.make("gem", Powers.info(Powers.Kind.PHOENIX).color, Vector2(30, 30)))
+	_tokens = UiKit.text("", 20, true, 800)
+	_tokens.label_settings.font_color = UiKit.INK_SOFT
+	bank.add_child(_tokens)
+	content.add_child(bank)
 	# Method callables (not lambdas) so these disconnect automatically when the overlay closes.
 	Profile.shards_changed.connect(_on_shards_changed)
 	Profile.upgrades_changed.connect(_rebuild)
@@ -39,17 +42,11 @@ func _rebuild() -> void:
 	if not is_instance_valid(_list):
 		return
 	for child in _list.get_children():
-		_list.remove_child(child)
 		child.queue_free()
-	fit_scroll.call_deferred(maxf(get_viewport_rect().size.y - 330.0, 260.0))
 	for id: String in Economy.UPGRADES:
 		_list.add_child(_card(id))
-	for child in _tokens.get_children():
-		child.queue_free()
-	_tokens.add_child(UiIcon.make("heart", UiKit.STYLES.pink[0], Vector2(30, 30)))
-	for i in Profile.MAX_REVIVE_TOKENS:
-		var lit := i < Profile.revive_tokens
-		_tokens.add_child(UiIcon.make("gem", Powers.info(Powers.Kind.PHOENIX).color if lit else Color(0.84, 0.82, 0.92), Vector2(34, 34)))
+	_tokens.text = "Revives saved: %d of %d  (find Phoenix Gems on the road)" % [
+		Profile.revive_tokens, Profile.MAX_REVIVE_TOKENS]
 
 
 func _card(id: String) -> Control:
@@ -68,21 +65,24 @@ func _card(id: String) -> Control:
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(info)
 	info.add_child(UiKit.text(spec.name, 26, true, 900))
+	var blurb := UiKit.text(spec.blurb, 19, true, 700)
+	blurb.label_settings.font_color = UiKit.INK_SOFT
+	info.add_child(blurb)
 	var pips := UiKit.hbox(6)
 	for i in top:
-		pips.add_child(UiIcon.make("circle", UiKit.STYLES.sky[0] if i < level else Color(0.82, 0.8, 0.9), Vector2(18, 18)))
-	var now := UiKit.text("  %s" % Economy.upgrade_label(id, level), 22, true, 900)
+		pips.add_child(UiIcon.make("circle", UiKit.STYLES.sky[0] if i < level else Color(0.82, 0.8, 0.9), Vector2(16, 16)))
+	var now := UiKit.text("  %s" % Economy.upgrade_label(id, level), 19, true, 900)
 	now.label_settings.font_color = UiKit.INK
 	pips.add_child(now)
 	if level < top:
-		var next := UiKit.text("→ %s" % Economy.upgrade_label(id, level + 1), 22, true, 900)
+		var next := UiKit.text("→ %s" % Economy.upgrade_label(id, level + 1), 19, true, 900)
 		next.label_settings.font_color = UiKit.STYLES.primary[1]
 		pips.add_child(next)
 	info.add_child(pips)
 	var cost := Economy.upgrade_cost(id, level)
 	var buy: Button
 	if cost < 0:
-		buy = UiKit.button("", "light", Vector2(132, 64), 30, "check")
+		buy = UiKit.button("MAX", "light", Vector2(132, 64), 24, "check")
 		buy.disabled = true
 	else:
 		buy = UiKit.button(UiKit.thousands(cost), "gold", Vector2(132, 64), 24, "shard")
@@ -99,4 +99,6 @@ func layout(portrait: bool) -> void:
 	var card: Control = find_child("Card", true, false)
 	if card:
 		card.custom_minimum_size.x = minf(card_width(portrait), 640.0)
-	fit_scroll.call_deferred(maxf(get_viewport_rect().size.y - 330.0, 260.0))
+	var scroll: Control = find_child("Scroll", true, false)
+	if scroll:
+		scroll.custom_minimum_size.y = clampf(get_viewport_rect().size.y - 330.0, 260.0, 620.0)

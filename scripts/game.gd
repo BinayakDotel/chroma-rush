@@ -430,7 +430,7 @@ func _play_tick(delta: float) -> void:
 	score += speed * delta * 0.5 * _multiplier()
 	var travelled := int(distance - START_S)
 	if travelled >= _next_milestone:
-		hud.hint("%s m" % UiKit.thousands(_next_milestone), UiKit.GOLD, 1.4, ["motion"])
+		hud.hint("%s m!" % UiKit.thousands(_next_milestone), UiKit.GOLD)
 		audio.play("start", 1.3)
 		_next_milestone += MILESTONE
 	_update_camera(delta)
@@ -495,21 +495,21 @@ func _tutorial_hints() -> void:
 	var row := track.next_row(distance)
 	if row.is_empty() or row.s - distance > HINT_DISTANCE:
 		return
-	# The cue is the symbols for what to do: the three colours, an arrow up, arrows sideways.
+	var touch := OS.has_feature("mobile")
 	var kind := ""
-	var icons := []
+	var text := ""
 	if row.cells.any(func(c: int) -> bool: return c >= 0 and c <= 2):
 		kind = "gate"
-		icons = ["circle", "triangle", "square"]
+		text = "TAP THE MATCHING COLOUR!" if touch else "MATCH THE COLOUR!  J K L"
 	elif Defs.LOW in row.cells:
 		kind = "low"
-		icons = ["up"]
+		text = "SWIPE UP TO JUMP!" if touch else "PRESS W TO JUMP!"
 	elif Defs.SOLID in row.cells:
 		kind = "solid"
-		icons = ["back", "next"]
+		text = "SWIPE TO DODGE!" if touch else "A / D TO DODGE!"
 	if not kind.is_empty() and not _hints_shown.has(kind):
 		_hints_shown[kind] = true
-		hud.hint("", Color.WHITE, 1.6, icons)
+		hud.hint(text, Color.WHITE, 1.6)
 
 
 # --- collisions and pickups ------------------------------------------------
@@ -572,7 +572,7 @@ func _pass_gate(row: Dictionary, lane: int) -> void:
 	audio.play("gate", 1.0 + minf(combo, 24) * 0.025)
 	_add_meter(0.12)
 	if combo % 8 == 0:
-		hud.hint("x%d" % _multiplier(), player.display_color, 1.4, ["star"])
+		hud.hint("COMBO x%d" % _multiplier(), player.display_color)
 
 
 func _check_orbs() -> void:
@@ -610,12 +610,12 @@ func _burn_fuel(seconds: float) -> void:
 	fuel = maxf(fuel - seconds / (Pacing.tank_time(distance) * _tank_bonus), 0.0)
 	if fuel < LOW_FUEL and not _low_fuel_warned:
 		_low_fuel_warned = true
-		hud.hint("!", Color(1.0, 0.55, 0.45), 1.4, ["fuel"])
+		hud.hint("LOW FUEL!", Color(1.0, 0.55, 0.45))
 		audio.play("warn")
 		Settings.vibrate(0.3)
 	if fuel <= 0.0:
 		_coast = 0.0
-		hud.hint("", Color(1.0, 0.55, 0.45), 1.4, ["fuel", "close"])
+		hud.hint("OUT OF FUEL!", Color(1.0, 0.55, 0.45))
 		audio.play("sputter")
 
 
@@ -638,9 +638,9 @@ func _check_fuel() -> void:
 			_low_fuel_warned = false
 		if _coast >= 0.0:
 			_coast = -1.0
-			hud.hint("", Color(0.55, 1.0, 0.6), 1.4, ["fuel", "check"])
+			hud.hint("SAVED!", Color(0.55, 1.0, 0.6))
 		else:
-			hud.hint("+", Color(0.55, 1.0, 0.6), 0.6, ["fuel"])
+			hud.hint("+FUEL", Color(0.55, 1.0, 0.6), 0.6)
 		score += 15 * _multiplier()
 		audio.play("fuel")
 		Settings.vibrate(0.2)
@@ -669,7 +669,7 @@ func _maybe_drop_fuel(delta: float) -> void:
 	if track.drop_fuel(near, far, lane, Pacing.DROP_FUEL):
 		run_stats.drops += 1
 		_drop_cooldown = Pacing.DROP_COOLDOWN
-		hud.hint("", _themes[world_index].fuel_color, 1.2, ["fuel", "down"])
+		hud.hint("FUEL DROP!", _themes[world_index].fuel_color, 1.2)
 		audio.play("start", 0.8)
 
 
@@ -690,8 +690,7 @@ func _check_powers() -> void:
 func _apply_power(kind: Powers.Kind) -> void:
 	var info := Powers.info(kind)
 	run_stats.powers += 1
-	var icons := [info.icon]
-	var text := ""
+	var text: String = info.name + "!"
 	match kind:
 		Powers.Kind.SHIELD:
 			shield = true
@@ -707,11 +706,8 @@ func _apply_power(kind: Powers.Kind) -> void:
 			else:
 				_add_meter(1.0)
 		Powers.Kind.PHOENIX:
-			# A banked revive: the gem and a heart.
-			if Profile.add_revive_token():
-				icons = [info.icon, "heart"]
-				text = "+1"
-	hud.hint(text, info.color, 1.6, icons)
+			text = "PHOENIX GEM!  +1 REVIVE" if Profile.add_revive_token() else "PHOENIX GEM!"
+	hud.hint(text, info.color, 1.6)
 	player.sparkle(info.color, true)
 	audio.play("unlock", 1.2)
 	cam.shake(0.2)
@@ -763,7 +759,7 @@ func _add_meter(amount: float) -> void:
 	var was := meter
 	meter = minf(meter + amount, 1.0)
 	if was < 1.0 and meter >= 1.0:
-		hud.hint("!", UiKit.GOLD, 1.4, ["bolt"])
+		hud.hint("PRISM READY!", UiKit.GOLD)
 		audio.play("start", 1.6)
 
 
@@ -774,7 +770,7 @@ func _activate_prism() -> void:
 	run_stats.overdrives += 1
 	player.rainbow = true
 	audio.play("prism")
-	hud.hint("", UiKit.GOLD, 1.0, ["bolt", "bolt", "bolt"])
+	hud.hint("PRISM OVERDRIVE!", UiKit.GOLD)
 	cam.shake(0.4)
 	Settings.vibrate(0.5)
 
@@ -806,7 +802,7 @@ func _crash(row: Dictionary) -> void:
 		player.shield = false
 		track.smash_cell(row, player.current_lane())
 		grace_left = GRACE_DURATION
-		hud.hint("", Powers.info(Powers.Kind.SHIELD).color, 1.4, ["shield", "check"])
+		hud.hint("SHIELD SAVED YOU!", Powers.info(Powers.Kind.SHIELD).color)
 		audio.play("smash")
 		cam.shake(0.6)
 		Settings.vibrate(0.7)
@@ -851,7 +847,7 @@ func _mission_run() -> Dictionary:
 ## Pays and announces any mission this run has just completed.
 func _check_missions() -> void:
 	for mission in Missions.check(_mission_run()):
-		hud.hint("+%d" % Missions.payout(mission), UiKit.GOLD, 1.8, ["target", "check", "shard"])
+		hud.hint("MISSION COMPLETE!  +%d" % Missions.payout(mission), UiKit.GOLD, 1.8)
 		audio.play("unlock", 1.1)
 		Settings.vibrate(0.5)
 
@@ -873,7 +869,6 @@ func _show_results() -> void:
 		goal.have = Profile.shards + _run_shards
 	ui.show_results({
 		"title": _end_title,
-		"cause": "fuel" if _end_title.begins_with("OUT") else "burst",
 		"score": final,
 		"best": maxi(Profile.best(world_id), final),
 		"new_best": final > Profile.best(world_id),
@@ -941,7 +936,7 @@ func _revive() -> void:
 	state = State.PLAYING
 	_state_time = 1.2
 	ui.show_hud()
-	hud.hint("", Color(0.55, 1.0, 0.6), 1.4, ["heart"])
+	hud.hint("SECOND CHANCE!", Color(0.55, 1.0, 0.6))
 	audio.play("revive")
 	Settings.vibrate(0.5)
 
