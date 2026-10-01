@@ -524,6 +524,7 @@ func _resolve_row(row: Dictionary) -> void:
 		track.smash_cell(row, lane)
 		score += 50 * _multiplier()
 		audio.play("smash", randf_range(0.9, 1.2))
+		player.sparkle(Color.WHITE, true)
 		cam.shake(0.35)
 		return
 	if grace_left > 0.0:
@@ -551,6 +552,7 @@ func _pass_gate(row: Dictionary, lane: int) -> void:
 	gates += 1
 	score += 25 * _multiplier()
 	track.pass_cell(row, lane)
+	player.sparkle(player.display_color)
 	audio.play("gate", 1.0 + minf(combo, 24) * 0.025)
 	_add_meter(0.12)
 	if combo % 8 == 0:
@@ -570,6 +572,7 @@ func _check_orbs() -> void:
 			track.drop(orb)
 			continue
 		track.collect_orb(orb)
+		player.sparkle(Defs.COLORS[orb.color])
 		if orb.color == player.color_idx or pulled:
 			orbs_collected += 1
 			if prism_left > 0.0:
@@ -613,6 +616,7 @@ func _check_fuel() -> void:
 			continue
 		run_stats.fuel_taken += 1
 		track.collect_fuel(pickup)
+		player.sparkle(_themes[world_index].fuel_color, true)
 		fuel = minf(fuel + Pacing.FUEL_PICKUP, 1.0)
 		if fuel > LOW_FUEL:
 			_low_fuel_warned = false
@@ -678,6 +682,7 @@ func _apply_power(kind: Powers.Kind) -> void:
 		Powers.Kind.PHOENIX:
 			text = "PHOENIX GEM!  +1 REVIVE" if Profile.add_revive_token() else "PHOENIX GEM!"
 	hud.hint(text, info.color, 1.6)
+	player.sparkle(info.color, true)
 	audio.play("unlock", 1.2)
 	cam.shake(0.2)
 	Settings.vibrate(0.4)
