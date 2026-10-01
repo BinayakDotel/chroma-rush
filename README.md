@@ -35,9 +35,28 @@ Each gate has a **colour and a shape**: red circle, yellow triangle or blue squa
 | Colour gate | Switch to the gate's colour before you reach it |
 | Block (rock, ice, cactus, meteor) | Change lanes to get around it |
 | Hurdle (log, snowdrift, fence, lava, laser) | Jump over it |
-| Fuel pickup | Drive through it; the tank drains as you go |
+| Fuel pickup | Drive through it; the tank drains as you go, and a pickup turns up ahead when you run low |
+| Power gem | Drive through it for a power (see below) |
 
-Passing gates and grabbing orbs fills the **Prism meter**. When it is full, trigger **Prism Overdrive** for five seconds of speed and invincibility.
+Passing gates and grabbing orbs fills the **Prism meter**. When it is full, trigger **Prism Overdrive**: five seconds of speed and invincibility, with orbs from every lane flying to you for double shards.
+
+Runs start calm and build up in waves: every 500 m a short breather (wide spacing, extra orbs, a guaranteed fuel pickup) is followed by a stretch that tightens towards the next milestone. Rows are always spaced so there is time for every lane change, colour switch and jump they need.
+
+### Power gems
+
+Rare gems with a tall beam of light, every 700 to 1,050 m:
+
+| Gem | Effect |
+| --- | --- |
+| Shield (hexagon) | Shrugs off your next crash |
+| Magnet (horseshoe) | Pulls in orbs from every lane for 8 seconds |
+| Full Tank (jerrycan) | Fills the fuel tank |
+| Prism Charge (prism) | Fills the Prism meter |
+| Phoenix Gem (cut gem, rare) | Saves a free revive for any later run (up to 3) |
+
+### Upgrades
+
+Shards buy five levels each of longer Overdrive, longer Magnet, a bigger fuel tank and Gem Luck (more power gems), as well as new worlds.
 
 ### Controls
 
@@ -55,7 +74,8 @@ Passing gates and grabbing orbs fills the **Prism meter**. When it is full, trig
 - **Readable for everyone**: one colour set in every world, chosen to stay distinct under protanopia, deuteranopia and tritanopia, plus a shape per colour.
 - **Endless and stable**: the track is generated as you drive, with bounded memory and a floating origin, so a 60 km run uses the same memory as a 1 km run.
 - **Full navigation**: home screen with world picker, how to play, pause, results, settings, shop, and the Android back button.
-- **Progression**: shards from orbs and distance unlock new worlds; best score per world; lifetime stats.
+- **Progression**: shards from orbs and distance buy upgrades and unlock new worlds; Phoenix gems bank free revives; best score per world; lifetime stats.
+- **Balanced by measurement**: a human-like bot plays hundreds of game-minutes to check that runs start calm, deaths are fair and fuel is recoverable (see [docs/game-design.md](docs/game-design.md)).
 - **Accessibility and comfort**: colour shapes, reduced motion, separate music and sound volume, vibration toggle, three graphics levels.
 - **Built to be tiny**: every model, texture, sound and the music are generated in code. The whole game pack is about 700 KB.
 
@@ -80,8 +100,10 @@ Product IDs, ad rules and prices live in `scripts/services/store.gd`, `scripts/s
 ```
 main.tscn                 Game scene: world, sun, track, player, camera, UI, audio
 scripts/
-  game.gd                 Game flow, scoring, collisions, input, rewards
-  track.gd                Endless path, road chunks, rows, orbs, fuel, floating origin
+  game.gd                 Game flow, scoring, collisions, input, rewards, power gems
+  pacing.gd               Speed, difficulty, waves, row spacing and fuel tuning
+  powers.gd               Power gem kinds, looks and frequency
+  track.gd                Endless path, road chunks, rows, orbs, fuel, gems, floating origin
   player.gd               Vehicle movement and animation (steering, springy parts, trail)
   vehicles.gd             The five vehicles and drivers, built from code
   obstacles.gd            Blocks, hurdles, gate arches and gems
@@ -94,6 +116,7 @@ scripts/
 shaders/                  Sky, road, gate panel, hazard, orb, outline, planet
 fonts/                    Lilita One and Nunito, with their licences
 icons/                    App icon source and rendered store / launcher icons
+docs/game-design.md       Design goals, tuning numbers and balance measurements
 docs/screenshots/         Images used in this README
 images/                   Style reference images (not shipped)
 ```
@@ -116,6 +139,9 @@ godot --headless --path . res://scripts/dev/dev.tscn -- --flow-test
 # Memory soak: 60 km without crashing, printing memory every minute
 godot --headless --path . res://scripts/dev/dev.tscn -- --world=meadow --autoplay --god --soak=60000 --time-scale=6 --report-every=60
 
+# Balance check: a bot with a person's reaction time and fuel habits, 20 runs, summary at the end
+godot --headless --fixed-fps 60 --path . res://scripts/dev/dev.tscn -- --autoplay --tutorial-done --bot=human --runs=20 --react=0.7 --action=0.25 --fuel-skill=0.8
+
 # Screenshots of a world or a screen
 godot --path . --resolution 720x1560 res://scripts/dev/dev.tscn -- --world=canyon --autoplay --god --tutorial-done --shots=10
 godot --path . --resolution 720x1560 res://scripts/dev/dev.tscn -- --world=glacier --tutorial-done --screen=shop --shots=2
@@ -127,11 +153,11 @@ Screenshots need a window, so they briefly open the game on screen. See the top 
 
 Export presets for macOS, Android (AAB) and iOS are in `export_presets.cfg`; the harness, tests and reference images are excluded from every build. Before a store release:
 
-- Install the Android and iOS export templates (Editor > Manage Export Templates).
+- Install the Android export template (Editor > Manage Export Templates).
 - Add the [Google Play Billing](https://github.com/godot-sdk-integrations/godot-google-play-billing), [StoreKit 2](https://github.com/godot-sdk-integrations/godot-storekit2) and [AdMob](https://github.com/godot-sdk-integrations/godot-admob) plugins and enable them in the presets.
 - Create the products in Play Console and App Store Connect with the IDs in `scripts/services/store.gd`.
 - Put the AdMob ad unit IDs in `scripts/services/ads_admob.gd` and the privacy / support links in `scripts/ui/screens/settings_screen.gd`.
-- Set up the Android keystore and the Apple team ID.
+- Set up the Android keystore, and replace the free personal Apple team in the iOS preset with the paid team.
 
 To regenerate the icons after editing `icons/icon.svg`:
 
