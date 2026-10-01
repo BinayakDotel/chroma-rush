@@ -50,28 +50,32 @@ const MAX_GAP := 160.0
 ## Fuel drains with time, not distance, so going faster doesn't secretly empty the tank
 ## faster. A full tank lasts TANK_TIME seconds at difficulty 0 and 1.
 ##
-## The economy is a few big pickups, not a stream of small ones. Each is worth nearly half a
-## tank, and every one is fair to collect: it sits in a lane that is open in the next row, far
-## enough along for the lane changes (see fuel_lead). Because they can all be caught, the
-## pressure comes from how many may be missed: half of them in the first kilometre, a third
-## by 2 km, one in six by 5 km, and none from about 8 km, after which every tank runs down.
-## The Fuel Tank upgrade moves each of those marks out by a fifth.
+## The economy is a few big pickups, not a stream of small ones. Each is worth over a third
+## of a tank, and every one is fair to collect: it sits in a lane that is open in the next
+## row, far enough along for the lane changes (see fuel_lead). Because they can all be caught,
+## the pressure comes from how many may be missed. Pickups alone keep the tank level if about
+## half are caught at the start, two in three by 1 km and nearly all by 2.5 km; after about
+## 4 km the tank slowly runs down however well the player collects, and Prism Overdrive (which
+## burns no fuel) and Full Tank gems are what stretch it. The Fuel Tank upgrade lowers every
+## one of those marks by a fifth. docs/game-design.md has the measured run lengths.
 const TANK_TIME := Vector2(40.0, 30.0)
 ## Fuel added by a pickup (fraction of the tank).
-const FUEL_PICKUP := 0.4
+const FUEL_PICKUP := 0.36
 ## Seconds of driving between fuel pickups at difficulty 0 and 1 (randomised +-15%). The one
 ## nearest each milestone moves into that milestone's breather.
-const FUEL_TIME := Vector2(9.0, 12.8)
+const FUEL_TIME := Vector2(7.5, 12.6)
 const FUEL_JITTER := 0.15
 ## Seconds a player needs after everything else to settle before the row behind a pickup.
 const FUEL_SETTLE := 0.25
 ## Last resort, and rare: with the tank nearly empty and no pickup reachable before it runs
-## dry, a fuel drop lands a few seconds ahead. It holds less than a pickup, lands in any open
-## lane (not the player's), and after one there is a long wait before another can come.
+## dry, a fuel drop lands a few seconds ahead. It holds less than a pickup, lands in another
+## open lane, and there is a long wait before another can come. A run gets at most DROP_LIMIT
+## of them, so nobody can live on drops.
 const DROP_BELOW := 0.14
 const DROP_AHEAD := Vector2(3.0, 4.6)  # seconds ahead that the drop lands
-const DROP_FUEL := 0.3
+const DROP_FUEL := 0.25
 const DROP_COOLDOWN := 45.0
+const DROP_LIMIT := 3
 
 ## Row patterns. Cells: 0..2 colour gates, Defs.SOLID block, Defs.LOW hurdle, Defs.EMPTY.
 ## "from": first metre the pattern can appear (teach one idea at a time); "weight": how common

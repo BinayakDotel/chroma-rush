@@ -30,7 +30,7 @@ func build() -> void:
 			"body": "Logs, lava and lasers sit low. Jump over them, and slam down to land sooner.",
 			"controls": "Swipe up to jump, down to slam" if touch else "W to jump, S to slam"},
 		{"title": "KEEP YOUR TANK FULL", "icons": ["fuel"],
-			"body": "Fuel drains as you drive. Grab the glowing fuel pickups. Running low? One will turn up ahead.",
+			"body": "Fuel drains as you drive. Grab the glowing fuel pickups: each one is in a lane you can take. Nearly empty? Watch for a fuel drop.",
 			"controls": "Steer into the pickup's lane"},
 		{"title": "POWER GEMS", "icons": ["shield", "magnet", "gem"],
 			"colors": [Powers.info(Powers.Kind.SHIELD).color, Powers.info(Powers.Kind.MAGNET).color,

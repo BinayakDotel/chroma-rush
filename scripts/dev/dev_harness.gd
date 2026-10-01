@@ -29,6 +29,7 @@ extends Node
 ##   --gems=<k1,k2,...>   place these power gems on the road ahead once the run starts
 ##                         (shield, magnet, full_tank, prism, phoenix), for screenshots
 ##   --give=<kind>         apply a power gem's effect at the start (e.g. shield)
+##   --fuel=<level>        set the tank (0..1) a second into the run, e.g. to see a fuel drop
 ##   --tokens=<n>          start with this many banked revives (Phoenix gems)
 ##   --upgrades=<id:n,...> start with these upgrade levels (e.g. tank:5,luck:2), to measure
 ##                         what an upgrade is worth
@@ -97,9 +98,11 @@ func _ready() -> void:
 		(game.get("ui") as CanvasLayer).visible = false
 	if _args.has("screen"):
 		_open_screen(str(_args.screen))
-	if _args.has("gems") or _args.has("give"):
+	if _args.has("gems") or _args.has("give") or _args.has("fuel"):
 		await get_tree().create_timer(1.0).timeout
 		_place_gems()
+		if _args.has("fuel"):
+			game.set("fuel", float(_args.fuel))
 	if _args.has("flow-test"):
 		# Watchdog: a failing step must never leave the test hanging.
 		get_tree().create_timer(180.0, true, false, true).timeout.connect(func() -> void:
@@ -202,8 +205,14 @@ func _drive_like_a_person() -> void:
 	var speed: float = maxf(game.get("speed"), 1.0)
 	var now := _elapsed
 	var row := track.next_row(distance - 0.2)
-	if not row.is_empty() and row != _bot_row:
-		# Just passed the previous row: look at this one and plan.
+	# A pickup that has just appeared before the next row (a fuel drop) makes the bot look again.
+	var new_pickup := false
+	if not row.is_empty():
+		for pickup in track.fuels:
+			if not pickup.done and pickup.s > distance and pickup.s < row.s and not _bot_fuel_seen.has(pickup.node):
+				new_pickup = true
+	if not row.is_empty() and (row != _bot_row or new_pickup):
+		# Just passed the previous row (or something new turned up): look ahead and plan.
 		_bot_row = row
 		_bot_queue.clear()
 		var react := float(_args.get("react", "0.7")) * _bot_rng.randf_range(0.75, 1.25)
