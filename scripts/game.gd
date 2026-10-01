@@ -16,6 +16,15 @@ const FUEL_PICKUP := 0.4
 const LOW_FUEL := 0.25
 const COAST_TIME := 1.6
 const HINT_DISTANCE := 38.0
+## Chase-camera framing: metres behind and above the vehicle, where it looks, and its field of
+## view at base speed (portrait keeps the horizontal FOV, see _frame_camera). Close and low so
+## the vehicle and the next obstacles fill the screen; all three lanes stay in view.
+const CAM_PORTRAIT := {"back": 8.0, "up": 4.3, "ahead": 16.0, "look_height": 0.0, "fov": 52.0}
+const CAM_LANDSCAPE := {"back": 7.5, "up": 3.6, "ahead": 16.0, "look_height": 0.3, "fov": 52.0}
+## Extra degrees of field of view at top speed, for a sense of speed without shrinking the road.
+const CAM_FOV_GAIN := 10.0
+## How quickly the camera catches up with a lane change (rad/s of the spring).
+const CAM_LATERAL_RATE := 11.0
 
 enum State { MENU, PLAYING, PAUSED, DEAD }
 
@@ -62,12 +71,20 @@ var _end_title := ""
 var _crash_row := {}
 var _hints_shown := {}
 var _first_run := false
+var _probe: FrameProbe
+## Camera's own lateral position, trailing the vehicle's so lane changes glide on screen.
+var _cam_lateral := 0.0
+var _cam_lateral_velocity := 0.0
 
 
 func _ready() -> void:
 	hud = ui.hud
-	if OS.has_feature("mobile"):
-		Engine.max_fps = 60
+	# No frame cap: V-Sync paces frames to the display. A cap below the refresh rate (60 FPS on a
+	# 120 Hz ProMotion screen) is not aligned to vsync, so frames are held for uneven times and
+	# motion judders.
+	Engine.max_fps = 0
+	if OS.is_debug_build() and OS.has_feature("mobile"):
+		_probe = FrameProbe.new()
 	player.landed.connect(_on_landed)
 	track.rebased.connect(_on_track_rebased)
 	Settings.changed.connect(_on_setting_changed)
@@ -91,6 +108,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if _probe:
+		_probe.tick(delta)
 	_state_time += delta
 	match state:
 		State.MENU:
@@ -158,6 +177,8 @@ func _new_run() -> void:
 	grace_left = 0.0
 	fuel = 1.0
 	_coast = -1.0
+	_cam_lateral = 0.0
+	_cam_lateral_velocity = 0.0
 	_low_fuel_warned = false
 	_revive_used = false
 	_crash_row = {}
@@ -376,21 +397,23 @@ func _play_tick(delta: float) -> void:
 
 
 func _update_camera(delta: float) -> void:
-	var portrait := _is_portrait()
-	# Portrait screens are narrow: sit higher and further back so all three lanes stay in view.
-	var back := 8.5 if portrait else 6.5
-	var up := 4.8 if portrait else 3.0
-	var behind := track.frame_at(distance - back)
-	var eye := behind.origin + behind.basis.x * (player.lateral * 0.6) + behind.basis.y * (up + player.height * 0.35)
-	var look := track.point(distance + (8.0 if portrait else 9.0), player.lateral * 0.35, 0.8 + player.height * 0.3)
+	var view: Dictionary = CAM_PORTRAIT if _is_portrait() else CAM_LANDSCAPE
+	# The camera trails the vehicle sideways on a critically damped spring, so a lane change
+	# glides across the screen instead of dragging the whole view with it.
+	var stiffness := CAM_LATERAL_RATE * CAM_LATERAL_RATE
+	_cam_lateral_velocity += ((player.lateral - _cam_lateral) * stiffness - _cam_lateral_velocity * 2.0 * CAM_LATERAL_RATE) * delta
+	_cam_lateral += _cam_lateral_velocity * delta
+	var behind := track.frame_at(distance - float(view.back))
+	var eye: Vector3 = behind.origin + behind.basis.x * (_cam_lateral * 0.65) + behind.basis.y * (view.up + player.height * 0.35)
+	var look := track.point(distance + float(view.ahead), _cam_lateral * 0.4, float(view.look_height) + player.height * 0.3)
 	var target := Transform3D(Basis.IDENTITY, eye).looking_at(look, track.frame_at(distance).basis.y)
 	# Glide from the menu orbit into the chase position, then lock on.
 	var blend := clampf(_state_time / 1.2, 0.0, 1.0)
 	cam.follow(target, delta, 10.0, 4.0, blend * blend)
-	var fov := remap(speed, Defs.BASE_SPEED, Defs.MAX_SPEED, 70.0, 88.0)
+	var fov: float = view.fov + remap(speed, Defs.BASE_SPEED, Defs.MAX_SPEED, 0.0, CAM_FOV_GAIN)
 	if prism_left > 0.0:
-		fov += 8.0
-	_frame_camera(clampf(fov, 60.0, 100.0), delta)
+		fov += 6.0
+	_frame_camera(clampf(fov, 50.0, 95.0), delta)
 
 
 ## Landscape keeps the vertical field of view; portrait keeps the horizontal one instead, so
@@ -510,6 +533,7 @@ func _check_orbs() -> void:
 			break
 		orb.done = true
 		if player.current_lane() != orb.lane:
+			track.drop_orb(orb)
 			continue
 		track.collect_orb(orb)
 		if orb.color == player.color_idx or prism_left > 0.0:

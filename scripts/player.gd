@@ -9,7 +9,9 @@ signal landed
 
 const SIZE := 0.9
 const HOVER := 0.15
-const LANE_SPEED := 20.0
+## Seconds a lane change takes. It eases out: quick off the mark (the vehicle is over the lane
+## line in about a fifth of this), then settles gently instead of stopping dead.
+const LANE_TIME := 0.18
 const GRAVITY := 34.0
 const JUMP_SPEED := 11.0
 const SLAM_SPEED := 24.0
@@ -34,6 +36,8 @@ var _air := 0.0
 var _t := 0.0
 var _last_lateral := 0.0
 var _lateral_velocity := 0.0
+var _lane_from := 0.0
+var _lane_t := 1.0
 var _body := Node3D.new()
 var _model: Node3D
 var _wheels: Array = []
@@ -120,6 +124,8 @@ func reset() -> void:
 	lane = 1
 	lateral = 0.0
 	_last_lateral = 0.0
+	_lane_from = 0.0
+	_lane_t = 1.0
 	height = 0.0
 	_vy = 0.0
 	rainbow = false
@@ -146,7 +152,8 @@ func revive() -> void:
 func tick(delta: float) -> void:
 	_t += delta
 	var target := Defs.lane_x(lane)
-	lateral = move_toward(lateral, target, LANE_SPEED * delta)
+	_lane_t = minf(_lane_t + delta / LANE_TIME, 1.0)
+	lateral = lerpf(_lane_from, target, 1.0 - pow(1.0 - _lane_t, 3.0))
 	var lateral_velocity := (lateral - _last_lateral) / maxf(delta, 0.0001)
 	var lateral_accel := (lateral_velocity - _lateral_velocity) / maxf(delta, 0.0001)
 	_lateral_velocity = lateral_velocity
@@ -201,6 +208,9 @@ func shift(direction: int) -> bool:
 	if next == lane:
 		return false
 	lane = next
+	# Start from wherever the vehicle is, so a second swipe mid-change carries on smoothly.
+	_lane_from = lateral
+	_lane_t = 0.0
 	return true
 
 

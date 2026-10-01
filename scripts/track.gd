@@ -233,6 +233,15 @@ func collect_orb(orb: Dictionary) -> void:
 	tween.tween_callback(mi.queue_free)
 
 
+## An orb the player drove past in another lane: shrink it away so it doesn't sweep past the
+## chase camera.
+func drop_orb(orb: Dictionary) -> void:
+	var mi: MeshInstance3D = orb.node
+	var tween := mi.create_tween()
+	tween.tween_property(mi, "scale", Vector3.ONE * 0.01, 0.2)
+	tween.tween_callback(mi.hide)
+
+
 func _ensure_samples(distance: float) -> void:
 	var needed := int(distance / STEP) + 2 - _base
 	while _pos.size() < needed:
