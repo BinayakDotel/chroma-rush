@@ -33,7 +33,9 @@ static func body_font(weight := 800) -> Font:
 	if not _body_fonts.has(weight):
 		var variation := FontVariation.new()
 		variation.base_font = BODY_FONT_FILE
-		variation.variation_opentype = {"wght": weight}
+		# The axis is keyed by its OpenType tag, not its name; with the name the weight is ignored
+		# and every label falls back to the font's lightest default.
+		variation.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): weight}
 		_body_fonts[weight] = variation
 	return _body_fonts[weight]
 
