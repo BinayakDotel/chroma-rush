@@ -338,6 +338,7 @@ func _apply_theme() -> void:
 	track.set_theme(theme)
 	track.set_symbols_visible(Settings.color_symbols)
 	player.set_model(theme.player)
+	player.set_look(theme.look)
 	player.set_trail_style(theme.trail)
 	player.set_color(player.color_idx)
 
