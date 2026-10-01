@@ -118,7 +118,7 @@ static func _kart(r: Rig) -> void:
 	var head := r.head_part(Vector3(0, 0.27, 0.18))
 	var h := head.detail
 	h.sphere(Vector3(0, 0.08, 0), Vector3(0.26, 0.23, 0.24), 3, 0.0, fur)
-	h.sphere(Vector3(0, 0.01, -0.15), Vector3(0.16, 0.11, 0.13), 2, 0.0, cream)
+	h.sphere(Vector3(0, 0.01, -0.15), Vector3(0.16, 0.11, 0.13), 1, 0.0, cream)
 	h.sphere(Vector3(0, 0.035, -0.275), Vector3(0.036, 0.028, 0.026), 1, 0.0, EYE)
 	_eyes(h, Vector3(0, 0.12, -0.205), 0.105, 0.05)
 	_cheeks(h, Vector3(0, 0.04, -0.2), 0.17)
@@ -166,7 +166,7 @@ static func _bobsled(r: Rig) -> void:
 	d.sphere(Vector3(0, 0.11, 0.03), Vector3(0.21, 0.25, 0.2), 2, 0.0, WHITE)
 	for x in [-1.0, 1.0]:
 		var flipper := r.part(Vector3(x * 0.25, 0.27, 0.1), true)
-		flipper.detail.sphere(Vector3(x * 0.04, -0.12, 0), Vector3(0.05, 0.16, 0.1), 2, 0.0, black)
+		flipper.detail.sphere(Vector3(x * 0.04, -0.12, 0), Vector3(0.05, 0.16, 0.1), 1, 0.0, black)
 		flipper.node.rotation.z = x * 0.4
 	d.torus(Vector3(0, 0.38, 0.11), Vector3.UP, 0.18, 0.055, TEAL, 14, 6, 0.8)
 	var scarf := r.part(Vector3(0.1, 0.39, 0.27), true)
@@ -187,7 +187,7 @@ static func _bobsled(r: Rig) -> void:
 		Vector2(0.225, 0.0), Vector2(0.22, 0.07), Vector2(0.175, 0.15), Vector2(0.09, 0.2), Vector2(0.0, 0.215)], 14, WHITE)
 	h.torus(Vector3(0, 0.185, 0), Vector3.UP, 0.212, 0.042, WHITE, 16, 6)
 	var pompom := r.part(Vector3(0, 0.385, 0.02), true, head.node)
-	pompom.detail.sphere(Vector3(0, 0.04, 0), Vector3.ONE * 0.078, 2, 0.0, WHITE)
+	pompom.detail.sphere(Vector3(0, 0.04, 0), Vector3.ONE * 0.078, 1, 0.0, WHITE)
 	r.trail = Vector3(0, ROAD + 0.05, 0.7)
 
 
@@ -249,18 +249,18 @@ static func _buggy(r: Rig) -> void:
 	var h := head.detail
 	h.sphere(Vector3(0, 0.03, -0.02), Vector3(0.25, 0.18, 0.24), 3, 0.0, skin)
 	for x in [-1.0, 1.0]:
-		h.sphere(Vector3(x * 0.15, 0.12, -0.08), Vector3.ONE * 0.095, 2, 0.0, skin)
-		h.sphere(Vector3(x * 0.155, 0.13, -0.115), Vector3.ONE * 0.078, 2, 0.0, WHITE)
+		h.sphere(Vector3(x * 0.15, 0.12, -0.08), Vector3.ONE * 0.095, 1, 0.0, skin)
+		h.sphere(Vector3(x * 0.155, 0.13, -0.115), Vector3.ONE * 0.078, 1, 0.0, WHITE)
 		h.sphere(Vector3(x * 0.165, 0.135, -0.172), Vector3(0.042, 0.052, 0.026), 1, 0.0, EYE)
 		h.sphere(Vector3(x * 0.15, 0.158, -0.195), Vector3.ONE * 0.015, 1, 0.0, WHITE)
 	h.pipe([Vector3(-0.1, -0.035, -0.235), Vector3(0, -0.055, -0.262), Vector3(0.1, -0.035, -0.235)], 0.008, EYE, 4)
 	_cheeks(h, Vector3(0, -0.005, -0.215), 0.17)
 	# Hat: a wide brim, a creased crown and a dark band.
 	var felt := Color(0.66, 0.42, 0.23)
-	h.lathe(Vector3(0, 0.165, -0.02), Vector3.UP, [
-		Vector2(0.14, 0.0), Vector2(0.3, 0.012), Vector2(0.315, 0.03), Vector2(0.3, 0.045), Vector2(0.165, 0.04),
+	h.lathe(Vector3(0, 0.2, 0.03), Vector3(0, 1.0, 0.12), [
+		Vector2(0.14, 0.0), Vector2(0.27, 0.012), Vector2(0.285, 0.03), Vector2(0.27, 0.045), Vector2(0.165, 0.04),
 		Vector2(0.165, 0.04), Vector2(0.145, 0.15), Vector2(0.1, 0.185), Vector2(0.0, 0.17)], 16, felt)
-	h.torus(Vector3(0, 0.225, -0.02), Vector3.UP, 0.163, 0.016, DARK, 16, 5, 1.8)
+	h.torus(Vector3(0, 0.258, 0.037), Vector3(0, 1.0, 0.12), 0.163, 0.016, DARK, 16, 5, 1.8)
 	r.trail = Vector3(0, ROAD + 0.05, 0.75)
 
 
@@ -377,7 +377,7 @@ static func _star_racer(r: Rig) -> void:
 	h.sphere(Vector3(0, 0.04, 0), Vector3(0.2, 0.18, 0.18), 3, 0.0, skin)
 	for x in [-1.0, 1.0]:
 		var eye := Vector3(x * 0.08, 0.07, -0.14)
-		h.sphere(eye, Vector3(0.062, 0.078, 0.04), 2, 0.0, EYE)
+		h.sphere(eye, Vector3(0.062, 0.078, 0.04), 1, 0.0, EYE)
 		h.sphere(eye + Vector3(-0.018, 0.03, -0.03), Vector3.ONE * 0.022, 1, 0.0, WHITE)
 		h.sphere(eye + Vector3(0.02, -0.025, -0.03), Vector3.ONE * 0.01, 0, 0.0, WHITE)
 	_cheeks(h, Vector3(0, -0.01, -0.158), 0.125)
@@ -406,8 +406,8 @@ static func _two_tone(soft := 0.5) -> Callable:
 static func _eyes(k: MeshKit, center: Vector3, spread: float, size: float) -> void:
 	for x in [-1.0, 1.0]:
 		var at := center + Vector3(x * spread, 0, 0)
-		k.sphere(at, Vector3(size, size * 1.22, size * 0.6), 2, 0.0, EYE)
-		k.sphere(at + Vector3(-size * 0.3, size * 0.42, -size * 0.5), Vector3.ONE * size * 0.32, 1, 0.0, WHITE)
+		k.sphere(at, Vector3(size, size * 1.22, size * 0.6), 1, 0.0, EYE)
+		k.sphere(at + Vector3(-size * 0.3, size * 0.42, -size * 0.5), Vector3.ONE * size * 0.32, 0, 0.0, WHITE)
 		k.sphere(at + Vector3(size * 0.3, -size * 0.4, -size * 0.52), Vector3.ONE * size * 0.14, 0, 0.0, WHITE)
 
 
@@ -420,7 +420,7 @@ static func _cheeks(k: MeshKit, center: Vector3, spread: float) -> void:
 static func _goggle(k: MeshKit, at: Vector3, facing: Vector3) -> void:
 	var out := facing.normalized()
 	k.torus(at, out, 0.055, 0.016, CHROME, 12, 5)
-	k.sphere(at + out * 0.004, Vector3(0.05, 0.05, 0.022), 2, 0.0, LENS)
+	k.sphere(at + out * 0.004, Vector3(0.05, 0.05, 0.022), 1, 0.0, LENS)
 	k.sphere(at + out * 0.022 + Vector3(-0.018, 0.018, 0.0), Vector3.ONE * 0.012, 0, 0.0, WHITE)
 
 
