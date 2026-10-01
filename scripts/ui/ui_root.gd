@@ -33,6 +33,10 @@ const UpgradesScreen = preload("res://scripts/ui/screens/upgrades_screen.gd")
 const MissionsScreen = preload("res://scripts/ui/screens/missions_screen.gd")
 const HowToScreen = preload("res://scripts/ui/screens/howto_screen.gd")
 const DialogScreen = preload("res://scripts/ui/screens/dialog_screen.gd")
+## The boot splash (see project.godot) and the colour behind it, repeated here so the game can
+## open by lifting that same picture away instead of cutting to the home screen.
+const SPLASH_PATH := "res://icons/splash.png"
+const SPLASH_COLOR := Color(0.208, 0.149, 0.788)
 
 var home: UiScreen
 var hud: UiScreen
@@ -68,6 +72,8 @@ func _ready() -> void:
 	Store.restore_finished.connect(func(_ok: bool, message: String) -> void: toast(message))
 	get_viewport().size_changed.connect(_relayout)
 	_relayout()
+	if not DevMode.active() or "--intro" in OS.get_cmdline_user_args():
+		_play_intro()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -84,6 +90,32 @@ func _notification(what: int) -> void:
 func _process(_delta: float) -> void:
 	if _fps.visible:
 		_fps.text = "%d FPS" % Engine.get_frames_per_second()
+
+
+## Opening: the first frame looks exactly like the boot splash (same colour, same logo in the
+## same place), then the logo swells a little and the whole cover fades to show the home screen.
+func _play_intro() -> void:
+	if not ResourceLoader.exists(SPLASH_PATH):
+		return
+	var cover := ColorRect.new()
+	cover.color = SPLASH_COLOR
+	UiKit.full_rect(cover)
+	cover.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(cover)
+	var logo := TextureRect.new()
+	logo.texture = load(SPLASH_PATH)
+	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	UiKit.full_rect(logo)
+	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cover.add_child(logo)
+	await get_tree().process_frame
+	logo.pivot_offset = logo.size * 0.5
+	var lift := cover.create_tween()
+	lift.tween_interval(0.35)
+	lift.tween_property(logo, "scale", Vector2.ONE * 1.08, 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	lift.parallel().tween_property(cover, "modulate:a", 0.0, 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	lift.tween_callback(cover.queue_free)
 
 
 func show_home(world: Dictionary, index: int, count: int) -> void:
