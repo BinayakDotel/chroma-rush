@@ -150,6 +150,10 @@ func _draw() -> void:
 			var edge := PackedVector2Array([p.call(0.28, 0.14), p.call(0.72, 0.14), p.call(0.94, 0.38), p.call(0.5, 0.94),
 				p.call(0.06, 0.38), p.call(0.28, 0.14)])
 			draw_polyline(edge, color.darkened(0.45), s * 0.05, true)
+		"upgrade":
+			for i in 2:
+				var y := 0.5 + i * 0.3
+				draw_polyline(PackedVector2Array([p.call(0.16, y), p.call(0.5, y - 0.34), p.call(0.84, y)]), color, w * 1.3, true)
 		"graphics":
 			draw_rect(Rect2(p.call(0.08, 0.16), Vector2(0.84, 0.6) * s), color, false, w * 0.9)
 			draw_colored_polygon(PackedVector2Array([p.call(0.2, 0.66), p.call(0.42, 0.36), p.call(0.58, 0.56),

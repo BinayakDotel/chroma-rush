@@ -106,6 +106,18 @@ func run(host: Node) -> void:
 	ui.home_requested.emit()
 	await _frames(3)
 
+	Profile.shards = 100
+	_check("an upgrade can't be bought without enough shards", not Profile.buy_upgrade("overdrive"))
+	Profile.shards = Economy.upgrade_cost("overdrive", 0)
+	_check("buying an upgrade spends shards and raises its level",
+		Profile.buy_upgrade("overdrive") and Profile.upgrade_level("overdrive") == 1 and Profile.shards == 0)
+	ui.play_requested.emit()
+	await _frames(3)
+	_check("upgrades apply to the next run",
+		is_equal_approx(float(game.get("_prism_duration")), Economy.upgrade_value("overdrive", 1)))
+	ui.home_requested.emit()
+	await _frames(3)
+
 	_check("store is available in debug builds", Store.is_available())
 	Store.purchase("world_pass")
 	await _seconds(1.2)

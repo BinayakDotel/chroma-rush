@@ -29,6 +29,7 @@ const PauseScreen = preload("res://scripts/ui/screens/pause_screen.gd")
 const ResultsScreen = preload("res://scripts/ui/screens/results_screen.gd")
 const SettingsScreen = preload("res://scripts/ui/screens/settings_screen.gd")
 const ShopScreen = preload("res://scripts/ui/screens/shop_screen.gd")
+const UpgradesScreen = preload("res://scripts/ui/screens/upgrades_screen.gd")
 const HowToScreen = preload("res://scripts/ui/screens/howto_screen.gd")
 const DialogScreen = preload("res://scripts/ui/screens/dialog_screen.gd")
 
@@ -115,6 +116,10 @@ func open_settings() -> void:
 
 func open_shop() -> void:
 	open_overlay(ShopScreen)
+
+
+func open_upgrades() -> void:
+	open_overlay(UpgradesScreen)
 
 
 ## How to play. With `then_play`, its last button starts a run (first-time players).

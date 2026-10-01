@@ -3,7 +3,6 @@ extends Node3D
 ## hooks into progression (shards, unlocks), ads (second chance, double shards) and settings.
 
 const START_S := 12.0
-const PRISM_DURATION := 5.0
 const PRISM_SPEED_BOOST := 1.25
 const GRACE_DURATION := 1.2
 const REVIVE_GRACE := 2.0
@@ -71,6 +70,11 @@ var _sun_dir := Vector3(0.0, 0.5, -1.0)
 var _coast := -1.0  # seconds spent rolling to a stop on an empty tank; -1 while fuelled
 var _rescue_cooldown := 0.0
 var _next_power_s := Powers.FIRST_AT
+## Upgrade effects, read at the start of each run (see Economy.UPGRADES).
+var _prism_duration := 5.0
+var _magnet_duration := Powers.MAGNET_TIME
+var _tank_bonus := 1.0
+var _gem_luck := 1.0
 var _low_fuel_warned := false
 var _revive_used := false
 var _recorded := true
@@ -229,6 +233,11 @@ func _on_play_requested() -> void:
 ## Starts driving on the freshly reset track (callers reset it first).
 func _start() -> void:
 	Profile.select_world(_themes[world_index].id)
+	# Read upgrades here, not when the home screen resets the track: they may be bought there.
+	_prism_duration = Profile.upgrade_value("overdrive")
+	_magnet_duration = Profile.upgrade_value("magnet")
+	_tank_bonus = Profile.upgrade_value("tank")
+	_gem_luck = Profile.upgrade_value("luck")
 	_first_run = Profile.lifetime_runs == 0
 	state = State.PLAYING
 	_state_time = 0.0
@@ -414,7 +423,7 @@ func _play_tick(delta: float) -> void:
 	hud.set_distance(travelled, speed)
 	hud.set_meter(meter, meter >= 1.0, prism_left > 0.0)
 	hud.set_fuel(fuel)
-	hud.set_powers(shield, magnet_left / Powers.MAGNET_TIME)
+	hud.set_powers(shield, magnet_left / _magnet_duration)
 	hud.set_speed_fx(remap(speed, 26.0, Pacing.MAX_SPEED * PRISM_SPEED_BOOST, 0.0, 1.0))
 
 
@@ -578,7 +587,7 @@ func _check_orbs() -> void:
 func _burn_fuel(seconds: float) -> void:
 	if prism_left > 0.0 or _coast >= 0.0:
 		return
-	fuel = maxf(fuel - seconds / Pacing.tank_time(distance), 0.0)
+	fuel = maxf(fuel - seconds / (Pacing.tank_time(distance) * _tank_bonus), 0.0)
 	if fuel < LOW_FUEL and not _low_fuel_warned:
 		_low_fuel_warned = true
 		hud.hint("LOW FUEL!", Color(1.0, 0.55, 0.45))
@@ -655,14 +664,14 @@ func _apply_power(kind: Powers.Kind) -> void:
 		Powers.Kind.SHIELD:
 			shield = true
 		Powers.Kind.MAGNET:
-			magnet_left = Powers.MAGNET_TIME
+			magnet_left = _magnet_duration
 		Powers.Kind.FULL_TANK:
 			fuel = 1.0
 			_low_fuel_warned = false
 			_coast = -1.0
 		Powers.Kind.PRISM:
 			if prism_left > 0.0:
-				prism_left = PRISM_DURATION
+				prism_left = _prism_duration
 			else:
 				_add_meter(1.0)
 		Powers.Kind.PHOENIX:
@@ -681,7 +690,7 @@ func _maybe_place_power() -> void:
 	var from := distance + speed * Powers.LEAD_TIME.x
 	var to := distance + speed * Powers.LEAD_TIME.y
 	if track.place_power(_pick_power(), from, to, player.lane):
-		_next_power_s = to + randf_range(Powers.EVERY.x, Powers.EVERY.y)
+		_next_power_s = to + randf_range(Powers.EVERY.x, Powers.EVERY.y) / _gem_luck
 	else:
 		_next_power_s += 20.0
 
@@ -698,6 +707,7 @@ func _pick_power() -> Powers.Kind:
 		weights[Powers.Kind.FULL_TANK] *= 0.3
 	if meter > 0.6 or prism_left > 0.0:
 		weights[Powers.Kind.PRISM] = 0.0
+	weights[Powers.Kind.PHOENIX] *= _gem_luck
 	if distance < Powers.PHOENIX_FROM or Profile.revive_tokens >= Profile.MAX_REVIVE_TOKENS:
 		weights[Powers.Kind.PHOENIX] = 0.0
 	var total := 0.0
@@ -724,7 +734,7 @@ func _add_meter(amount: float) -> void:
 func _activate_prism() -> void:
 	if state != State.PLAYING or prism_left > 0.0 or meter < 1.0:
 		return
-	prism_left = PRISM_DURATION
+	prism_left = _prism_duration
 	player.rainbow = true
 	audio.play("prism")
 	hud.hint("PRISM OVERDRIVE!", UiKit.GOLD)
@@ -738,7 +748,7 @@ func _tick_prism(delta: float) -> void:
 	if prism_left <= 0.0:
 		return
 	prism_left -= delta
-	meter = maxf(prism_left / PRISM_DURATION, 0.0)
+	meter = maxf(prism_left / _prism_duration, 0.0)
 	if prism_left <= 0.0:
 		prism_left = 0.0
 		meter = 0.0
