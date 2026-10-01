@@ -16,10 +16,11 @@ extends Node
 ##   --hide-ui             hide every screen (clean shots of the 3D scene)
 ##   --screen-delay=<s>    seconds of play before --screen=pause|results opens (default 2)
 ##   --flow-test           run the end-to-end flow checks in flow_test.gd and exit
-##   --screen=<name>       open a screen for screenshots: settings | shop | upgrades | howto |
-##                         pause | results
+##   --screen=<name>       open a screen for screenshots: settings | shop | upgrades | missions |
+##                         howto | pause | results
 ##   --shards=<n>          start with this many shards
-##   --showcase=<yaw>      close-up camera orbiting the vehicle at this angle (degrees)
+##   --showcase=<yaw,...>  close-up camera on the vehicle at this angle (degrees); with several
+##                         angles, each screenshot uses the next one
 ##   --bot=human           with --autoplay: drive like a person instead of perfectly. It looks
 ##                         at each row only after passing the previous one, reacts after
 ##                         --react=<s> (default 0.7, +-25%), needs --action=<s> (default 0.25)
@@ -29,9 +30,13 @@ extends Node
 ##                         (shield, magnet, full_tank, prism, phoenix), for screenshots
 ##   --give=<kind>         apply a power gem's effect at the start (e.g. shield)
 ##   --tokens=<n>          start with this many banked revives (Phoenix gems)
+##   --upgrades=<id:n,...> start with these upgrade levels (e.g. tank:5,luck:2), to measure
+##                         what an upgrade is worth
 ##   --runs=<n>            with --bot=human: quit after this many runs
 ##   --max-run=<s>         with --bot=human: end a run that lasts this long (game seconds) and
 ##                         count it as survived (default 600)
+##   --perf                print frame-time percentiles and the worst spikes at the end (run
+##                         headless: the time per frame is then the CPU cost of the game's scripts)
 
 var game: Node
 var _args := {}
@@ -39,6 +44,7 @@ var _elapsed := 0.0
 var _next_report := 0.0
 var _shots: Array[float] = []
 var _shot_dir := "user://shots"
+var _shots_taken := 0
 var _baseline := {}
 var _runs := 0
 ## Human-like bot state: the row being handled, queued actions [{at, kind, arg}], results.
@@ -47,6 +53,9 @@ var _bot_queue: Array[Dictionary] = []
 var _bot_fuel_seen := {}
 var _bot_results: Array[Dictionary] = []
 var _bot_rng := RandomNumberGenerator.new()
+## --perf: wall-clock microseconds of every frame while playing.
+var _frame_usec := PackedInt32Array()
+var _last_usec := 0
 
 
 func _ready() -> void:
@@ -66,6 +75,9 @@ func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--shards="):
 			Profile.shards = int(arg.get_slice("=", 1))
+		if arg.begins_with("--upgrades="):
+			for pair in arg.get_slice("=", 1).split(",", false):
+				Profile.upgrades[pair.get_slice(":", 0)] = int(pair.get_slice(":", 1))
 	for arg in OS.get_cmdline_user_args():
 		var parts := arg.trim_prefix("--").split("=", true, 1)
 		_args[parts[0]] = parts[1] if parts.size() > 1 else "true"
@@ -100,15 +112,22 @@ func _process(delta: float) -> void:
 	_elapsed += delta
 	if not _shots.is_empty() and _elapsed >= _shots[0]:
 		_shots.pop_front()
+		_shots_taken += 1
 		var path := "%s/shot_%s_%05.1f.png" % [_shot_dir, _args.get("world", "x"), _elapsed]
 		get_viewport().get_texture().get_image().save_png(path)
 		print("[dev] shot ", ProjectSettings.globalize_path(path))
 		if _shots.is_empty() and not _args.has("soak"):
 			get_tree().quit()
 	if _args.has("showcase"):
-		_showcase(deg_to_rad(float(_args.showcase)))
+		var angles := str(_args.showcase).split(",", false)
+		_showcase(deg_to_rad(float(angles[mini(_shots_taken, angles.size() - 1)])))
 	if not _args.has("autoplay"):
 		return
+	if _args.has("perf"):
+		var now := Time.get_ticks_usec()
+		if _last_usec > 0 and _elapsed > 3.0:
+			_frame_usec.append(now - _last_usec)
+		_last_usec = now
 	if _args.has("god"):
 		game.call("dev_keep_alive")
 	if not game.call("dev_is_playing"):
@@ -135,6 +154,7 @@ func _process(delta: float) -> void:
 		print("[dev] done after %d restarts: %s" % [_runs, final])
 		print("[dev] delta nodes=%d objects=%d static_mb=%.2f" % [
 			final.nodes - _baseline.nodes, final.objects - _baseline.objects, final.static_mb - _baseline.static_mb])
+		_report_perf()
 		get_tree().quit()
 
 
@@ -279,6 +299,24 @@ func _bot_finish_run() -> bool:
 	return true
 
 
+func _report_perf() -> void:
+	if _frame_usec.is_empty():
+		return
+	var sorted := _frame_usec.duplicate()
+	sorted.sort()
+	var n := sorted.size()
+	var total := 0
+	var over_4 := 0
+	var over_8 := 0
+	for t in sorted:
+		total += t
+		over_4 += 1 if t > 4000 else 0
+		over_8 += 1 if t > 8000 else 0
+	print("[perf] frames=%d avg=%.2f ms p50=%.2f p95=%.2f p99=%.2f max=%.2f ms  over 4 ms: %d  over 8 ms: %d" % [
+		n, total / 1000.0 / n, sorted[n / 2] / 1000.0, sorted[n * 95 / 100] / 1000.0, sorted[n * 99 / 100] / 1000.0,
+		sorted[n - 1] / 1000.0, over_4, over_8])
+
+
 func _place_gems() -> void:
 	var track: Track = game.get("track")
 	var distance: float = game.get("distance")
@@ -304,6 +342,8 @@ func _open_screen(screen: String) -> void:
 			ui.open_shop()
 		"upgrades":
 			ui.open_upgrades()
+		"missions":
+			ui.open_missions()
 		"howto":
 			ui.open_howto(false)
 		"pause", "results":
@@ -342,4 +382,9 @@ func _memory() -> Dictionary:
 		"rows": track.rows.size(),
 		"orbs": track.orbs.size(),
 		"origin_dist": snappedf(track.frame_at(game.get("distance")).origin.length(), 0.1),
+		# What the renderer drew last frame (zero when running headless).
+		"draw_calls": int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
+		"drawn_objects": int(Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)),
+		"triangles": int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)),
+		"video_mb": snappedf(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0, 0.1),
 	}

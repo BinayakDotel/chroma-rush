@@ -347,11 +347,18 @@ func _apply_theme() -> void:
 
 
 ## Graphics presets. Mobile builds use the Mobile renderer, which ignores SSAO anyway.
+## Low has no real shadows (the vehicle and pickups keep their soft patches on the road) and
+## no bloom; Medium draws one shadow map over a short range; High draws two over a long one.
 func _apply_quality() -> void:
 	var q := Settings.quality
 	var env := world.environment
 	sun.shadow_enabled = q >= Settings.Quality.MEDIUM
-	sun.directional_shadow_max_distance = 90.0 if q == Settings.Quality.HIGH else 60.0
+	if q == Settings.Quality.HIGH:
+		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+		sun.directional_shadow_max_distance = 90.0
+	else:
+		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+		sun.directional_shadow_max_distance = 48.0
 	env.ssao_enabled = q == Settings.Quality.HIGH
 	env.glow_enabled = q >= Settings.Quality.MEDIUM
 	var viewport := get_viewport()
