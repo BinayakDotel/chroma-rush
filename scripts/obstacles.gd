@@ -20,6 +20,8 @@ const MOSS := Color(0.34, 0.62, 0.22)
 ## Half the distance between the arch's outer pillars (just outside the road edge).
 const ARCH_HALF := 4.1
 const ARCH_BEAM_Y := 3.05
+## Pillars start this far below the road, so they meet the ground beside the kerb.
+const ARCH_FOOT := 0.45
 const LANE_EDGE := 1.05
 
 
@@ -137,7 +139,7 @@ static func arch(style: String, material: Material, glow: Material) -> ArrayMesh
 	match style:
 		"wood":
 			for side in [-1.0, 1.0]:
-				k.cylinder(Vector3(side * ARCH_HALF, 0, 0), Vector3.UP * (top + 0.35), 0.22, 0.18, 7, BARK, true, 0.04)
+				k.cylinder(Vector3(side * ARCH_HALF, -ARCH_FOOT, 0), Vector3.UP * (top + 0.35 + ARCH_FOOT), 0.22, 0.18, 7, BARK, true, 0.04)
 				for i in 3:
 					var at := Vector3(side * ARCH_HALF + k.rand(-0.3, 0.3), top + 0.35 + k.rand(0.0, 0.25), k.rand(-0.2, 0.2))
 					k.sphere(at, Vector3.ONE * k.rand(0.32, 0.45), 1, 0.2, Obstacles.MOSS.lightened(k.rand(0.0, 0.15)))
@@ -146,7 +148,7 @@ static func arch(style: String, material: Material, glow: Material) -> ArrayMesh
 			_hangers(k, top, Color(0.85, 0.72, 0.48))
 		"ice":
 			for side in [-1.0, 1.0]:
-				k.cylinder(Vector3(side * ARCH_HALF, 0, 0), Vector3.UP * (top + 0.4), 0.3, 0.26, 6, Color(0.35, 0.72, 0.98), true, 0.03, SNOW)
+				k.cylinder(Vector3(side * ARCH_HALF, -ARCH_FOOT, 0), Vector3.UP * (top + 0.4 + ARCH_FOOT), 0.3, 0.26, 6, Color(0.35, 0.72, 0.98), true, 0.03, SNOW)
 				k.sphere(Vector3(side * ARCH_HALF, top + 0.45, 0), Vector3(0.38, 0.18, 0.34), 1, 0.15, SNOW)
 			k.box(Vector3(0, top + 0.18, 0), Vector3((ARCH_HALF + 0.3) * 2.0, 0.3, 0.4), Color(0.55, 0.85, 1.0), 0.02)
 			k.box(Vector3(0, top + 0.37, 0), Vector3((ARCH_HALF + 0.2) * 2.0, 0.1, 0.44), SNOW, 0.02)
@@ -156,7 +158,7 @@ static func arch(style: String, material: Material, glow: Material) -> ArrayMesh
 		"sandstone":
 			var tones := [Color(0.86, 0.52, 0.32), Color(0.95, 0.66, 0.42), Color(0.78, 0.44, 0.28)]
 			for side in [-1.0, 1.0]:
-				var y := 0.0
+				var y := -ARCH_FOOT
 				var i := 0
 				while y < top:
 					var hgt := minf(0.7, top - y)
@@ -170,7 +172,7 @@ static func arch(style: String, material: Material, glow: Material) -> ArrayMesh
 			_hangers(k, top, Color(0.45, 0.3, 0.2))
 		"basalt":
 			for side in [-1.0, 1.0]:
-				k.cylinder(Vector3(side * ARCH_HALF, 0, 0), Vector3.UP * (top + 0.5), 0.34, 0.3, 6, BASALT, true, 0.05, BASALT.lightened(0.1))
+				k.cylinder(Vector3(side * ARCH_HALF, -ARCH_FOOT, 0), Vector3.UP * (top + 0.5 + ARCH_FOOT), 0.34, 0.3, 6, BASALT, true, 0.05, BASALT.lightened(0.1))
 				g.box(Vector3(side * (ARCH_HALF - 0.25), top * 0.5, -0.16), Vector3(0.04, top * 0.8, 0.02), LAVA)
 				g.sphere(Vector3(side * ARCH_HALF, top + 0.62, 0), Vector3(0.16, 0.12, 0.16), 0, 0.2, Color(1.0, 0.6, 0.15))
 			k.box(Vector3(0, top + 0.22, 0), Vector3((ARCH_HALF + 0.3) * 2.0, 0.4, 0.5), BASALT.lightened(0.05), 0.04)
@@ -178,7 +180,7 @@ static func arch(style: String, material: Material, glow: Material) -> ArrayMesh
 			_hangers(k, top, Color(0.12, 0.1, 0.14))
 		"tech":
 			for side in [-1.0, 1.0]:
-				k.box(Vector3(side * ARCH_HALF, (top + 0.4) * 0.5, 0), Vector3(0.36, top + 0.4, 0.36), METAL)
+				k.box(Vector3(side * ARCH_HALF, (top + 0.4 - ARCH_FOOT) * 0.5, 0), Vector3(0.36, top + 0.4 + ARCH_FOOT, 0.36), METAL)
 				g.box(Vector3(side * (ARCH_HALF - 0.19), (top + 0.4) * 0.5, 0), Vector3(0.02, top + 0.1, 0.1), Color(0.4, 0.9, 1.0))
 				g.sphere(Vector3(side * ARCH_HALF, top + 0.5, 0), Vector3.ONE * 0.1, 0, 0.0, Color(1.0, 0.4, 0.5))
 			k.box(Vector3(0, top + 0.3, 0), Vector3((ARCH_HALF + 0.2) * 2.0, 0.14, 0.3), METAL)
@@ -191,17 +193,20 @@ static func arch(style: String, material: Material, glow: Material) -> ArrayMesh
 	return g.commit(glow, k.commit(material))
 
 
-## Collectible gem for a colour slot, shaped like that colour's symbol: round, pyramid, cube.
+## Collectible gem for a colour slot, shaped like that colour's symbol: a smooth ball, a
+## three-sided crystal, a rounded cube.
 static func gem(slot: int, material: Material) -> ArrayMesh:
-	var k := MeshKit.new(5 + slot)
+	var k := MeshKit.new(5 + slot, true)
 	match Defs.SYMBOLS[slot]:
 		Defs.Symbol.CIRCLE:
-			k.sphere(Vector3.ZERO, Vector3.ONE * 0.34, 1, 0.0, Color.WHITE)
+			k.sphere(Vector3.ZERO, Vector3.ONE * 0.34, 2, 0.0, Color.WHITE)
 		Defs.Symbol.TRIANGLE:
-			k.cylinder(Vector3(0, -0.2, 0), Vector3.UP * 0.62, 0.4, 0.0, 3, Color.WHITE)
-			k.cylinder(Vector3(0, -0.2, 0), Vector3.DOWN * 0.16, 0.4, 0.0, 3, Color.WHITE)
+			# Facets stay crisp: a crystal should glint.
+			k.smooth = false
+			k.cylinder(Vector3(0, -0.14, 0), Vector3.UP * 0.6, 0.42, 0.0, 3, Color.WHITE)
+			k.cylinder(Vector3(0, -0.14, 0), Vector3.DOWN * 0.26, 0.42, 0.0, 3, Color.WHITE)
 		_:
-			k.box(Vector3.ZERO, Vector3.ONE * 0.46, Color.WHITE)
+			k.rounded_box(Vector3.ZERO, Vector3.ONE * 0.5, 0.12, Color.WHITE)
 	return k.commit(material)
 
 

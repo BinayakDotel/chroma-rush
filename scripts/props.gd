@@ -27,7 +27,8 @@ const CREAM := Color(0.96, 0.92, 0.82)
 
 ## `tint` colours theme-dependent parts (the fuel pickups).
 static func build(kind: String, seed_value: int, material: Material, tint := Color.WHITE) -> ArrayMesh:
-	var k := MeshKit.new(seed_value)
+	# Pickups are smooth and clean; scenery is faceted.
+	var k := MeshKit.new(seed_value, kind in ["jerrycan", "fish", "energy_cell"])
 	match kind:
 		"round_tree":
 			_round_tree(k, LEAVES[seed_value % LEAVES.size()], Vector3.ZERO)
@@ -117,10 +118,6 @@ static func build(kind: String, seed_value: int, material: Material, tint := Col
 			_fish(k)
 		"energy_cell":
 			_energy_cell(k, tint)
-		"fuel_halo":
-			k.ring(Vector3(0, 0.04, 0), Vector3.UP, 0.8, 1.1, 28, [Color.WHITE])
-		"fuel_beam":
-			k.cylinder(Vector3.ZERO, Vector3.UP * 4.0, 0.75, 0.45, 10, Color.WHITE)
 	return k.commit(material)
 
 
@@ -370,29 +367,36 @@ static func _lava_rock(k: MeshKit, size: float) -> void:
 # --- fuel pickups (centred on the origin so they can spin) -----------------
 
 static func _jerrycan(k: MeshKit, body: Color) -> void:
-	k.box(Vector3.ZERO, Vector3(0.28, 0.72, 0.56), body)
-	k.box(Vector3(0, 0.4, 0.08), Vector3(0.1, 0.08, 0.3), body.darkened(0.3))
-	k.cylinder(Vector3(0, 0.36, -0.2), Vector3(0, 0.16, -0.1), 0.06, 0.05, 6, DARK, true)
-	for x in [-0.15, 0.15]:
-		k.box(Vector3(x, 0.0, 0.0), Vector3(0.02, 0.34, 0.34), DARK)
+	k.rounded_box(Vector3.ZERO, Vector3(0.3, 0.7, 0.56), 0.08, body)
+	# A paler pressed panel on each side, the cap, and a handle across the top.
+	k.rounded_box(Vector3.ZERO, Vector3(0.34, 0.34, 0.36), 0.05, body.lightened(0.35))
+	k.capsule(Vector3(0, 0.3, -0.2), Vector3(0, 0.44, -0.27), 0.06, DARK)
+	k.capsule(Vector3(0, 0.34, -0.02), Vector3(0, 0.45, 0.0), 0.03, body.darkened(0.25))
+	k.capsule(Vector3(0, 0.45, 0.0), Vector3(0, 0.45, 0.2), 0.03, body.darkened(0.25))
+	k.capsule(Vector3(0, 0.45, 0.2), Vector3(0, 0.34, 0.22), 0.03, body.darkened(0.25))
 
 
 static func _fish(k: MeshKit) -> void:
-	var skin := func(d: Vector3) -> Color: return k.vary(Color(0.95, 0.97, 1.0) if d.y < -0.2 else Color(0.35, 0.65, 1.0), 0.05)
-	k.sphere(Vector3.ZERO, Vector3(0.18, 0.26, 0.5), 1, 0.0, skin)
-	var tail := Color(0.3, 0.55, 0.95)
-	var a := Vector3(0, 0, 0.42)
-	var b := Vector3(0, 0.28, 0.78)
-	var c := Vector3(0, -0.28, 0.78)
-	k.tri(a, b, c, tail, Vector3.RIGHT)
-	k.tri(a, b, c, tail, Vector3.LEFT)
-	for x in [-0.14, 0.14]:
-		k.sphere(Vector3(x, 0.07, -0.3), Vector3.ONE * 0.05, 0, 0.0, DARK)
+	var skin := func(d: Vector3) -> Color:
+		return Color(0.95, 0.97, 1.0).lerp(Color(0.3, 0.62, 1.0), smoothstep(-0.35, 0.15, d.y))
+	k.sphere(Vector3.ZERO, Vector3(0.17, 0.25, 0.48), 2, 0.0, skin)
+	var fin := Color(0.25, 0.5, 0.95)
+	k.smooth = false
+	k.slab([Vector3(0, 0, 0.4), Vector3(0, 0.27, 0.78), Vector3(0, 0, 0.66), Vector3(0, -0.27, 0.78)], 0.03, fin)
+	k.slab([Vector3(0, 0.2, -0.1), Vector3(0, 0.38, 0.14), Vector3(0, 0.2, 0.2)], 0.03, fin)
+	k.smooth = true
+	for x in [-0.13, 0.13]:
+		k.sphere(Vector3(x, 0.06, -0.3), Vector3.ONE * 0.05, 1, 0.0, DARK)
+		k.sphere(Vector3(x * 1.2, 0.08, -0.32), Vector3.ONE * 0.018, 0, 0.0, Color.WHITE)
 
 
 static func _energy_cell(k: MeshKit, glow: Color) -> void:
-	var metal := Color(0.3, 0.32, 0.4)
-	k.cylinder(Vector3(0, -0.38, 0), Vector3.UP * 0.14, 0.24, 0.24, 8, metal, true)
-	k.cylinder(Vector3(0, -0.24, 0), Vector3.UP * 0.48, 0.2, 0.2, 8, glow, false)
-	k.cylinder(Vector3(0, 0.24, 0), Vector3.UP * 0.14, 0.24, 0.24, 8, metal, true)
-	k.cylinder(Vector3(0, 0.38, 0), Vector3.UP * 0.1, 0.08, 0.08, 6, metal, true)
+	var metal := Color(0.36, 0.4, 0.5)
+	var bright := glow.lightened(0.3)
+	var paint := func(p: Vector3, _n: Vector3) -> Color: return bright if absf(p.y) < 0.23 else metal
+	# Repeated points make crisp steps between the caps and the glowing core.
+	k.lathe(Vector3(0, -0.4, 0), Vector3.UP, [
+		Vector2(0.0, 0.0), Vector2(0.2, 0.0), Vector2(0.25, 0.04), Vector2(0.25, 0.16), Vector2(0.25, 0.16),
+		Vector2(0.2, 0.16), Vector2(0.2, 0.64), Vector2(0.2, 0.64), Vector2(0.25, 0.64), Vector2(0.25, 0.76),
+		Vector2(0.2, 0.8), Vector2(0.09, 0.8), Vector2(0.09, 0.8), Vector2(0.09, 0.88), Vector2(0.0, 0.9),
+	], 12, paint)

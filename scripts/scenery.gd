@@ -5,10 +5,16 @@ extends RefCounted
 
 const VARIANTS := 3
 const VERGE_STEP := 2
-const NEAR_FADE := Vector2(390.0, 270.0)  # invisible beyond x metres, solid within y
-const FAR_FADE := Vector2(720.0, 480.0)
+## Scenery is only drawn within these distances of the camera (metres), fading over the last
+## stretch. Small things stop being drawn first: beyond that they are a pixel or two in the haze.
+const SMALL_RANGE := Vector2(170.0, 40.0)   # drawn out to x, fading over the last y
+const NEAR_RANGE := Vector2(340.0, 60.0)
+const FAR_RANGE := Vector2(720.0, 240.0)
 const FAR_AHEAD := 660.0
 const FAR_BEHIND := 160.0
+## Low props that are not worth a shadow or drawing from far away.
+const SMALL_PROPS: Array[String] = ["bush", "dry_bush", "flowers", "mushroom", "rock", "pale_rock", "snow_rock",
+	"desert_rock", "coral_rock", "lava_rock", "ice_crystal", "obsidian"]
 
 ## Placement rules for landmarks: lateral distance, height offset, scale,
 ## clearance radius (per unit scale), and whether clearance is checked in 3D.
@@ -31,18 +37,17 @@ const FAR_SPECS := {
 }
 
 var theme: Dictionary
-var material := StandardMaterial3D.new()
+## One soft material for the ground, props, landmarks and obstacles of a world.
+var material: ShaderMaterial
 var block_meshes: Array[ArrayMesh] = []
 var hurdle_mesh: ArrayMesh
 var arch_mesh: ArrayMesh
 var fuel_mesh: ArrayMesh
-var fuel_halo_mesh: ArrayMesh
 var fuel_beam_mesh: ArrayMesh
 
 var _track: Track
-var _near_material := StandardMaterial3D.new()
-var _far_material := StandardMaterial3D.new()
-var _planet_material := ShaderMaterial.new()
+var _planet_material: ShaderMaterial
+var _cloud_material: ShaderMaterial
 var _meshes := {}
 var _far: Array[Dictionary] = []
 var _next_far_s := 0.0
@@ -53,22 +58,13 @@ var _noise := FastNoiseLite.new()
 func _init(track: Track, theme_data: Dictionary) -> void:
 	_track = track
 	theme = theme_data
-	for m: StandardMaterial3D in [material, _near_material, _far_material]:
-		m.vertex_color_use_as_albedo = true
-		m.roughness = 0.9
-	for pair in [[_near_material, NEAR_FADE], [_far_material, FAR_FADE]]:
-		var m: StandardMaterial3D = pair[0]
-		m.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
-		m.distance_fade_min_distance = pair[1].x
-		m.distance_fade_max_distance = pair[1].y
-	# Big landmarks fade smoothly (dithering shows on large surfaces).
-	_far_material.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA
-	_planet_material.shader = preload("res://shaders/planet.gdshader")
+	material = Look.soft(theme.look)
+	# Planets are lit by their own glow as well, so the far side keeps its colour.
+	_planet_material = Look.soft(theme.look, {"glow": 0.4, "ramp": 0.3, "rim": 0.5})
+	# Clouds stay bright underneath instead of shading like rock.
+	_cloud_material = Look.soft(theme.look, {"glow": 0.25, "under": 0.95, "ramp": 0.2, "rim": 0.1})
 	_noise.frequency = 0.02
-	var glow := StandardMaterial3D.new()
-	glow.vertex_color_use_as_albedo = true
-	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	glow.albedo_color = Color(2.2, 2.2, 2.2)
+	var glow := Look.glowing(2.2)
 	for i in VARIANTS:
 		block_meshes.append(Obstacles.block(theme.block, 30 + i * 17, material, glow))
 	var hazard := ShaderMaterial.new()
@@ -77,24 +73,11 @@ func _init(track: Track, theme_data: Dictionary) -> void:
 		hazard.set_shader_parameter(key, theme.hazard[key])
 	hurdle_mesh = Obstacles.hurdle(theme.hurdle, material, glow, hazard)
 	arch_mesh = Obstacles.arch(theme.arch, material, glow)
-	# Pickups get a dark outline so they read against any background.
-	var pickup_material: StandardMaterial3D = material.duplicate()
-	pickup_material.next_pass = outline_material(1.12, false)
+	# Pickups are glossy and lit from within, so they stand out without an outline.
 	var fuel_color: Color = theme.fuel_color
+	var pickup_material := Look.soft(theme.look, {"gloss": 0.9, "glow": 0.35, "rim": 0.7, "under": 0.8})
 	fuel_mesh = Props.build(theme.fuel, 5, pickup_material, fuel_color)
-	var halo_material := StandardMaterial3D.new()
-	halo_material.vertex_color_use_as_albedo = true
-	halo_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	halo_material.albedo_color = Color(fuel_color.r * 1.5, fuel_color.g * 1.5, fuel_color.b * 1.5)
-	fuel_halo_mesh = Props.build("fuel_halo", 6, halo_material)
-	var beam_material := StandardMaterial3D.new()
-	beam_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	beam_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	beam_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	beam_material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	beam_material.vertex_color_use_as_albedo = true
-	beam_material.albedo_color = Color(fuel_color.r, fuel_color.g, fuel_color.b, 0.3)
-	fuel_beam_mesh = Props.build("fuel_beam", 7, beam_material)
+	fuel_beam_mesh = Look.beam_mesh(0.7, 4.0, Look.beam(fuel_color, 0.26))
 	_prewarm()
 
 
@@ -102,15 +85,6 @@ func _init(track: Track, theme_data: Dictionary) -> void:
 func _prewarm() -> void:
 	for entry: Array in theme.near + theme.far:
 		_mesh(entry[0])
-
-
-## Cartoon outline pass: a slightly larger, inside-out copy drawn in a dark colour.
-static func outline_material(grow: float, spin: bool) -> ShaderMaterial:
-	var m := ShaderMaterial.new()
-	m.shader = preload("res://shaders/outline.gdshader")
-	m.set_shader_parameter("grow", grow)
-	m.set_shader_parameter("spin", 1.0 if spin else 0.0)
-	return m
 
 
 func reset(seed_value: int) -> void:
@@ -154,9 +128,11 @@ func update(s: float) -> void:
 func _mesh(kind: String) -> ArrayMesh:
 	if not _meshes.has(kind):
 		var variants: Array[ArrayMesh] = []
-		var mat: Material = _far_material if FAR_SPECS.has(kind) else _near_material
+		var mat: Material = material
 		if kind.ends_with("planet"):
 			mat = _planet_material
+		elif kind == "cloud":
+			mat = _cloud_material
 		for i in VARIANTS:
 			variants.append(Props.build(kind, i * 7919 + kind.hash() % 1000, mat))
 		_meshes[kind] = variants
@@ -186,8 +162,10 @@ func _verge_profile(i: int, side: float) -> Array[Vector3]:
 	var hw := Track.HALF_WIDTH
 	var w := _verge_width(s, side)
 	var bump := func(k: float) -> float: return maxf(_noise.get_noise_2d(s * 3.0, side * 97.0 + k * 31.0), 0.0) * 0.6
+	# The ground starts tucked under the kerb, below the road surface, so it can never show
+	# through the road where the two meshes curve differently.
 	var columns := [
-		Vector2(hw, -0.02), Vector2(hw + 1.0, 0.04 + bump.call(1.0) * 0.4), Vector2(hw + w * 0.55, bump.call(2.0)),
+		Vector2(hw - 0.05, -0.16), Vector2(hw + 1.0, 0.04 + bump.call(1.0) * 0.4), Vector2(hw + w * 0.55, bump.call(2.0)),
 		Vector2(hw + w, -0.15), Vector2(hw + w + 0.4, -1.4), Vector2(hw + w - 0.3, -3.2),
 		Vector2(hw + w - 2.0, -5.5 - bump.call(3.0) * 2.0), Vector2(0.0, -6.5),
 	]
@@ -232,7 +210,7 @@ func _build_fence(kit: MeshKit, first: int, count: int, side: float, wood: Color
 		var frame := _track.frame_at(i * Track.STEP)
 		var post := frame.origin + frame.basis.x * (Track.HALF_WIDTH + 0.55) * side
 		var up := frame.basis.y
-		kit.cylinder(post - up * 0.1, up * 1.0, 0.09, 0.08, 4, wood, true)
+		kit.cylinder(post - up * 0.25, up * 1.15, 0.09, 0.08, 4, wood, true)
 		if i > start:
 			for h in [0.4, 0.75]:
 				kit.cylinder(prev_post + prev_up * h, (post + up * h) - (prev_post + prev_up * h), 0.045, 0.045, 4, wood.darkened(0.1))
@@ -251,8 +229,13 @@ func _place_near(parent: Node3D, first: int, count: int) -> void:
 			var w := _verge_width(s, side)
 			var lateral := Track.HALF_WIDTH + 1.6 + _rng.randf() * maxf(w - 2.6, 0.5)
 			var frame := _track.frame_at(s)
+			var kind := _pick(kinds)
 			var mi := MeshInstance3D.new()
-			mi.mesh = _mesh(_pick(kinds))
+			mi.mesh = _mesh(kind)
+			var small := kind in SMALL_PROPS
+			_set_range(mi, SMALL_RANGE if small else NEAR_RANGE)
+			if small:
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			var basis := frame.basis * Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * _rng.randf_range(0.8, 1.25))
 			mi.transform = Transform3D(basis, frame.origin + frame.basis.x * lateral * side - frame.basis.y * 0.05)
 			parent.add_child(mi)
@@ -281,6 +264,13 @@ func _spawn_far(anchor: float) -> void:
 		_track.add_child(mi)
 		_far.append({"s": anchor, "node": mi, "radius": radius})
 		return
+
+
+## Stops drawing `mi` beyond range.x metres from the camera, fading out over the last range.y.
+func _set_range(mi: MeshInstance3D, draw_range: Vector2) -> void:
+	mi.visibility_range_end = draw_range.x
+	mi.visibility_range_end_margin = draw_range.y
+	mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 
 
 func _overlaps_landmark(pos: Vector3, radius: float) -> bool:

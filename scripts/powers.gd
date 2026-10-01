@@ -38,33 +38,35 @@ static func info(kind: Kind) -> Dictionary:
 ## The gem's shape, centred on the origin and about a metre across. Each kind has its own
 ## silhouette so it reads without relying on colour.
 static func mesh(kind: Kind, material: Material) -> ArrayMesh:
-	var k := MeshKit.new(40 + kind)
+	# Smooth where the thing is moulded (magnet, can), faceted where it is cut (badge, gems).
+	var k := MeshKit.new(40 + kind, true)
 	var white := Color.WHITE
 	match kind:
 		Kind.SHIELD:
 			# A hexagonal badge facing the player.
+			k.smooth = false
 			k.cylinder(Vector3(0, 0, -0.1), Vector3(0, 0, 0.2), 0.55, 0.55, 6, white, true)
 			k.cylinder(Vector3(0, 0, 0.1), Vector3(0, 0, 0.06), 0.36, 0.3, 6, white, true)
 		Kind.MAGNET:
-			# A horseshoe magnet, open end down.
-			var segments := 9
-			for i in segments:
-				var a0 := PI * i / segments
-				var a1 := PI * (i + 1) / segments
-				k.tube(Vector3(cos(a0), sin(a0), 0) * 0.38 + Vector3.UP * 0.1,
-					Vector3(cos(a1), sin(a1), 0) * 0.38 + Vector3.UP * 0.1, 0.13, white, 6)
-			for side in [-1.0, 1.0]:
-				k.tube(Vector3(0.38 * side, 0.1, 0), Vector3(0.38 * side, -0.35, 0), 0.13, white, 6)
+			# A horseshoe magnet, open end down: one bent bar with rounded ends.
+			var path: Array = [Vector3(-0.38, -0.36, 0)]
+			for i in 11:
+				var a := PI - PI * i / 10.0
+				path.append(Vector3(cos(a) * 0.38, 0.1 + sin(a) * 0.38, 0))
+			path.append(Vector3(0.38, -0.36, 0))
+			k.pipe(path, 0.14, white, 8)
 		Kind.FULL_TANK:
 			# A jerrycan.
-			k.box(Vector3.ZERO, Vector3(0.62, 0.8, 0.3), white)
-			k.tube(Vector3(-0.2, 0.5, 0), Vector3(0.12, 0.5, 0), 0.06, white)
-			k.cylinder(Vector3(0.22, 0.4, 0), Vector3(0.08, 0.22, 0), 0.09, 0.07, 6, white, true)
+			k.rounded_box(Vector3.ZERO, Vector3(0.62, 0.8, 0.32), 0.09, white)
+			k.capsule(Vector3(-0.2, 0.5, 0), Vector3(0.1, 0.5, 0), 0.055, white)
+			k.capsule(Vector3(0.2, 0.36, 0), Vector3(0.28, 0.58, 0), 0.08, white)
 		Kind.PRISM:
 			# A triangular prism lying on its side.
+			k.smooth = false
 			k.cylinder(Vector3(-0.45, 0, 0), Vector3(0.9, 0, 0), 0.42, 0.42, 3, white, true)
 		Kind.PHOENIX:
 			# A cut gemstone: shallow crown over a deep pavilion.
+			k.smooth = false
 			k.cylinder(Vector3(0, 0.05, 0), Vector3.UP * 0.32, 0.5, 0.28, 8, white, true)
 			k.cylinder(Vector3(0, 0.05, 0), Vector3.DOWN * 0.6, 0.5, 0.0, 8, white)
 	return k.commit(material)
