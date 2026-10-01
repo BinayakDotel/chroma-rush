@@ -190,7 +190,7 @@ func tick(delta: float) -> void:
 		flame.scale = Vector3(1.0, 1.0, power * (1.0 + 0.3 * sin(_t * 47.0) + 0.15 * sin(_t * 31.0)))
 	_update_wobblers(delta, lateral_accel, vertical_accel)
 	_trail.emitting = _trail_enabled and speed > 1.0 and height <= 0.05 and _body.visible
-	_trail.amount_ratio = clampf(speed / Defs.MAX_SPEED, 0.2, 1.0)
+	_trail.amount_ratio = clampf(speed / Pacing.MAX_SPEED, 0.2, 1.0)
 	if rainbow:
 		_apply_color(Color.from_hsv(fmod(_t * 1.2, 1.0), 0.6, 1.0))
 
@@ -285,7 +285,7 @@ func _apply_color(c: Color) -> void:
 
 ## Spring-driven floppy parts: they swing against lane changes and bounce on jumps and landings.
 func _update_wobblers(delta: float, lateral_accel: float, vertical_accel: float) -> void:
-	var flutter := sin(_t * 18.0) * 0.08 * clampf(speed / Defs.MAX_SPEED, 0.0, 1.0)
+	var flutter := sin(_t * 18.0) * 0.08 * clampf(speed / Pacing.MAX_SPEED, 0.0, 1.0)
 	var drive := Vector2(clampf(vertical_accel * 0.006, -0.5, 0.5) + flutter, clampf(lateral_accel * 0.0025, -0.7, 0.7))
 	for w in _wobblers:
 		var angle: Vector2 = w.angle

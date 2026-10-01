@@ -18,6 +18,14 @@ extends Node
 ##   --flow-test           run the end-to-end flow checks in flow_test.gd and exit
 ##   --screen=<name>       open a screen for screenshots: settings | shop | howto | pause | results
 ##   --showcase=<yaw>      close-up camera orbiting the vehicle at this angle (degrees)
+##   --bot=human           with --autoplay: drive like a person instead of perfectly. It looks
+##                         at each row only after passing the previous one, reacts after
+##                         --react=<s> (default 0.7, +-25%), needs --action=<s> (default 0.25)
+##                         per swipe or tap, and goes for a fuel pickup with probability
+##                         --fuel-skill=<p> (default 0.8). Prints every run and a summary.
+##   --runs=<n>            with --bot=human: quit after this many runs
+##   --max-run=<s>         with --bot=human: end a run that lasts this long (game seconds) and
+##                         count it as survived (default 600)
 
 var game: Node
 var _args := {}
@@ -27,6 +35,12 @@ var _shots: Array[float] = []
 var _shot_dir := "user://shots"
 var _baseline := {}
 var _runs := 0
+## Human-like bot state: the row being handled, queued actions [{at, kind, arg}], results.
+var _bot_row := {}
+var _bot_queue: Array[Dictionary] = []
+var _bot_fuel_seen := {}
+var _bot_results: Array[Dictionary] = []
+var _bot_rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
@@ -82,10 +96,18 @@ func _process(delta: float) -> void:
 	if _args.has("god"):
 		game.call("dev_keep_alive")
 	if not game.call("dev_is_playing"):
+		if _args.get("bot") == "human" and _bot_finish_run():
+			return
 		_runs += 1
 		game.call("dev_start_run")
 		return
-	_drive()
+	if _args.get("bot") == "human":
+		if float(game.get("_run_time")) >= float(_args.get("max-run", "600")):
+			game.call("_end_run", "SURVIVED", false)
+			return
+		_drive_like_a_person()
+	else:
+		_drive()
 	var report_every := float(_args.get("report-every", "30"))
 	if _elapsed >= _next_report:
 		_next_report = _elapsed + report_every
@@ -133,6 +155,112 @@ func _drive() -> void:
 	if want_lane != player.lane:
 		game.call("dev_shift", signi(want_lane - player.lane))
 	game.call("dev_prism")
+
+
+## Drives with a person's limits (see --bot=human): reaction time, time per action, and not
+## every fuel pickup.
+func _drive_like_a_person() -> void:
+	var track: Track = game.get("track")
+	var player: Racer = game.get("player")
+	var distance: float = game.get("distance")
+	var speed: float = maxf(game.get("speed"), 1.0)
+	var now := _elapsed
+	var row := track.next_row(distance - 0.2)
+	if not row.is_empty() and row != _bot_row:
+		# Just passed the previous row: look at this one and plan.
+		_bot_row = row
+		_bot_queue.clear()
+		var react := float(_args.get("react", "0.7")) * _bot_rng.randf_range(0.75, 1.25)
+		var action := float(_args.get("action", "0.25"))
+		# A fuel pickup before this row that the bot decides to go for pulls it to that lane.
+		var fuel_lane := -1
+		for pickup in track.fuels:
+			if pickup.done or pickup.s < distance or pickup.s > row.s:
+				continue
+			if not _bot_fuel_seen.has(pickup.node):
+				_bot_fuel_seen[pickup.node] = _bot_rng.randf() < float(_args.get("fuel-skill", "0.8"))
+			if _bot_fuel_seen[pickup.node]:
+				fuel_lane = pickup.lane
+				break
+		var want := _best_lane(row, player.lane, fuel_lane)
+		var at := now + react
+		var lane := player.lane
+		while lane != want:
+			lane += signi(want - lane)
+			_bot_queue.append({"at": at, "kind": "shift", "arg": signi(want - player.lane)})
+			at += action
+		var cell: int = row.cells[want]
+		if cell >= 0 and cell <= 2 and cell != player.color_idx:
+			_bot_queue.append({"at": at, "kind": "color", "arg": cell})
+			at += action
+		if cell == Defs.LOW:
+			_bot_queue.append({"at": at, "kind": "jump", "arg": 0})
+	while not _bot_queue.is_empty() and now >= float(_bot_queue[0].at):
+		var step: Dictionary = _bot_queue[0]
+		if step.kind == "jump":
+			# Jumps are timed to the hurdle, not done as soon as possible.
+			if row.is_empty() or (row.s - distance) / speed > 0.28:
+				break
+			game.call("dev_jump")
+		elif step.kind == "shift":
+			game.call("dev_shift", int(step.arg))
+		else:
+			game.call("dev_set_color", int(step.arg))
+		_bot_queue.pop_front()
+	game.call("dev_prism")
+
+
+func _best_lane(row: Dictionary, from_lane: int, fuel_lane: int) -> int:
+	var best := from_lane
+	var best_score := -INF
+	for lane in Defs.LANES:
+		var cell: int = row.cells[lane]
+		var score := -absf(lane - from_lane) * 0.3 + (1.0 if lane == fuel_lane else 0.0)
+		if cell == Defs.SOLID:
+			score -= 100.0
+		if score > best_score:
+			best_score = score
+			best = lane
+	return best
+
+
+## Records a finished human-bot run. Returns true when the requested runs are done (and quits).
+func _bot_finish_run() -> bool:
+	if float(game.get("distance")) < 20.0:
+		return false
+	var result := {"metres": int(game.get("distance")), "cause": str(game.get("_end_title")),
+		"seconds": snappedf(float(game.get("_run_time")), 0.1)}
+	var crash: Dictionary = game.get("_crash_row")
+	if not crash.is_empty():
+		var player: Racer = game.get("player")
+		var track: Track = game.get("track")
+		var previous := -1.0
+		for r in track.rows:
+			if r.s < crash.s:
+				previous = r.s
+		result.crash = {"cells": crash.cells, "lane": player.current_lane(), "color": player.color_idx,
+			"gap_s": snappedf((crash.s - previous) / maxf(Pacing.speed_at(crash.s), 1.0), 0.01),
+			"queue": _bot_queue.map(func(q: Dictionary) -> String: return "%s:%s@%.2f" % [q.kind, q.arg, float(q.at) - _elapsed])}
+	result.fuel = snappedf(float(game.get("fuel")), 0.01)
+	result.merge(game.get("run_stats"))
+	_bot_results.append(result)
+	print("[bot] run %d: %s" % [_bot_results.size(), result])
+	_bot_row = {}
+	_bot_queue.clear()
+	_bot_fuel_seen.clear()
+	if _bot_results.size() < int(_args.get("runs", "20")):
+		return false
+	var metres: Array = _bot_results.map(func(r: Dictionary) -> int: return r.metres)
+	metres.sort()
+	var fuel_deaths := _bot_results.filter(func(r: Dictionary) -> bool: return r.cause == "OUT OF FUEL!").size()
+	var survived := _bot_results.filter(func(r: Dictionary) -> bool: return r.cause == "SURVIVED").size()
+	var minutes: Array = _bot_results.map(func(r: Dictionary) -> float: return r.seconds / 60.0)
+	minutes.sort()
+	print("[bot] summary: runs=%d median=%d m (%.1f min) p10=%d m p90=%d m out_of_fuel=%d%% survived=%d%%" % [
+		metres.size(), metres[metres.size() / 2], minutes[minutes.size() / 2], metres[metres.size() / 10],
+		metres[metres.size() * 9 / 10], 100 * fuel_deaths / metres.size(), 100 * survived / metres.size()])
+	get_tree().quit()
+	return true
 
 
 func _flag(name: String) -> bool:

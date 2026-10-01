@@ -4,17 +4,16 @@ extends Node3D
 
 const START_S := 12.0
 const PRISM_DURATION := 5.0
-const PRISM_SPEED_BOOST := 1.35
+const PRISM_SPEED_BOOST := 1.25
 const GRACE_DURATION := 1.2
 const REVIVE_GRACE := 2.0
 const REVIVE_FUEL := 0.6
 const RESULTS_DELAY := 0.9
 const SWIPE_PX := 50.0
 const MILESTONE := 500
-const FUEL_PER_METRE := 1.0 / 420.0
-const FUEL_PICKUP := 0.4
 const LOW_FUEL := 0.25
-const COAST_TIME := 1.6
+## Seconds of rolling to a stop on an empty tank; a pickup in that time still saves the run.
+const COAST_TIME := 2.2
 const HINT_DISTANCE := 38.0
 ## Chase-camera framing: metres behind and above the vehicle, where it looks, and its field of
 ## view at base speed (portrait keeps the horizontal FOV, see _frame_camera). Close and low so
@@ -51,11 +50,15 @@ var prism_left := 0.0
 var grace_left := 0.0
 var fuel := 1.0
 var world_index := 0
+## Counters for this run, for tuning and (later) missions.
+var run_stats := {}
 ## Set only by the developer harness: obstacles are smashed instead of ending the run.
 var dev_god := false
 
 var _themes := Themes.all()
 var _state_time := 0.0
+## Seconds driven this run (pauses excluded).
+var _run_time := 0.0
 var _next_milestone := MILESTONE
 var _menu_angle := 0.0
 var _sky_yaw := 0.0
@@ -63,6 +66,7 @@ var _touch_start := Vector2.ZERO
 var _swiped := false
 var _sun_dir := Vector3(0.0, 0.5, -1.0)
 var _coast := -1.0  # seconds spent rolling to a stop on an empty tank; -1 while fuelled
+var _rescue_cooldown := 0.0
 var _low_fuel_warned := false
 var _revive_used := false
 var _recorded := true
@@ -166,7 +170,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _new_run() -> void:
 	track.reset(randi())
 	distance = START_S
-	speed = Defs.speed_at(distance)
+	speed = Pacing.speed_at(distance)
 	score = 0.0
 	combo = 0
 	best_combo = 0
@@ -177,6 +181,9 @@ func _new_run() -> void:
 	grace_left = 0.0
 	fuel = 1.0
 	_coast = -1.0
+	_rescue_cooldown = 0.0
+	run_stats = {"fuel_taken": 0, "fuel_missed": 0, "rescues": 0}
+	_run_time = 0.0
 	_cam_lateral = 0.0
 	_cam_lateral_velocity = 0.0
 	_low_fuel_warned = false
@@ -359,13 +366,14 @@ func _menu_tick(delta: float) -> void:
 
 
 func _play_tick(delta: float) -> void:
+	_run_time += delta
 	cam.frame_offset = cam.frame_offset.lerp(Vector2.ZERO, 1.0 - exp(-6.0 * delta))
-	speed = Defs.speed_at(distance) * (PRISM_SPEED_BOOST if prism_left > 0.0 else 1.0)
+	speed = Pacing.speed_at(distance) * (PRISM_SPEED_BOOST if prism_left > 0.0 else 1.0)
 	if _coast >= 0.0:
 		_coast += delta
 		speed *= clampf(1.0 - _coast / COAST_TIME, 0.0, 1.0)
 	distance += speed * delta
-	_burn_fuel(speed * delta)
+	_burn_fuel(delta)
 	track.update(distance)
 	player.transform = track.frame_at(distance)
 	player.speed = speed
@@ -373,6 +381,7 @@ func _play_tick(delta: float) -> void:
 	_tick_prism(delta)
 	_check_orbs()
 	_check_fuel()
+	_maybe_rescue(delta)
 	_check_rows()
 	if state != State.PLAYING:
 		return
@@ -393,7 +402,7 @@ func _play_tick(delta: float) -> void:
 	hud.set_distance(travelled, speed)
 	hud.set_meter(meter, meter >= 1.0, prism_left > 0.0)
 	hud.set_fuel(fuel)
-	hud.set_speed_fx(remap(speed, 30.0, Defs.MAX_SPEED * PRISM_SPEED_BOOST, 0.0, 1.0))
+	hud.set_speed_fx(remap(speed, 26.0, Pacing.MAX_SPEED * PRISM_SPEED_BOOST, 0.0, 1.0))
 
 
 func _update_camera(delta: float) -> void:
@@ -410,7 +419,7 @@ func _update_camera(delta: float) -> void:
 	# Glide from the menu orbit into the chase position, then lock on.
 	var blend := clampf(_state_time / 1.2, 0.0, 1.0)
 	cam.follow(target, delta, 10.0, 4.0, blend * blend)
-	var fov: float = view.fov + remap(speed, Defs.BASE_SPEED, Defs.MAX_SPEED, 0.0, CAM_FOV_GAIN)
+	var fov: float = view.fov + remap(speed, Pacing.BASE_SPEED, Pacing.MAX_SPEED, 0.0, CAM_FOV_GAIN)
 	if prism_left > 0.0:
 		fov += 6.0
 	_frame_camera(clampf(fov, 50.0, 95.0), delta)
@@ -547,11 +556,11 @@ func _check_orbs() -> void:
 			audio.play("orb", 0.9, -8.0)
 
 
-## Prism Overdrive runs free; otherwise fuel burns with distance.
-func _burn_fuel(metres: float) -> void:
+## Prism Overdrive runs free; otherwise fuel burns with time (see Pacing.tank_time).
+func _burn_fuel(seconds: float) -> void:
 	if prism_left > 0.0 or _coast >= 0.0:
 		return
-	fuel = maxf(fuel - metres * FUEL_PER_METRE, 0.0)
+	fuel = maxf(fuel - seconds / Pacing.tank_time(distance), 0.0)
 	if fuel < LOW_FUEL and not _low_fuel_warned:
 		_low_fuel_warned = true
 		hud.hint("LOW FUEL!", Color(1.0, 0.55, 0.45))
@@ -571,9 +580,11 @@ func _check_fuel() -> void:
 			break
 		pickup.done = true
 		if player.current_lane() != pickup.lane:
+			run_stats.fuel_missed += 1
 			continue
+		run_stats.fuel_taken += 1
 		track.collect_fuel(pickup)
-		fuel = minf(fuel + FUEL_PICKUP, 1.0)
+		fuel = minf(fuel + Pacing.FUEL_PICKUP, 1.0)
 		if fuel > LOW_FUEL:
 			_low_fuel_warned = false
 		if _coast >= 0.0:
@@ -584,6 +595,23 @@ func _check_fuel() -> void:
 		score += 15 * _multiplier()
 		audio.play("fuel")
 		Settings.vibrate(0.2)
+
+
+## Running low with no pickup coming up: place one a few seconds ahead, near the player's
+## lane. Missing pickups costs time and pressure, never the whole run by surprise.
+func _maybe_rescue(delta: float) -> void:
+	_rescue_cooldown = maxf(_rescue_cooldown - delta, 0.0)
+	if fuel >= Pacing.RESCUE_BELOW or _rescue_cooldown > 0.0 or prism_left > 0.0:
+		return
+	var horizon := distance + speed * Pacing.RESCUE_LOOKAHEAD
+	for pickup in track.fuels:
+		if not pickup.done and pickup.s > distance + 1.0 and pickup.s < horizon:
+			return
+	var near := distance + speed * Pacing.RESCUE_AHEAD.x
+	var far := distance + speed * Pacing.RESCUE_AHEAD.y
+	if track.place_fuel(near, far, player.lane):
+		run_stats.rescues += 1
+		_rescue_cooldown = Pacing.RESCUE_COOLDOWN
 
 
 func _add_meter(amount: float) -> void:
@@ -749,8 +777,10 @@ func _slam() -> void:
 		audio.play("lane", 0.6)
 
 
+## Colour taps always count, even during Prism Overdrive (the vehicle stays rainbow until it
+## ends): a tap for the next gate in the last moment of Overdrive must not be lost.
 func _set_color(index: int) -> void:
-	if state != State.PLAYING or index == player.color_idx or prism_left > 0.0:
+	if state != State.PLAYING or index == player.color_idx:
 		return
 	player.set_color(index)
 	hud.set_color(index)
