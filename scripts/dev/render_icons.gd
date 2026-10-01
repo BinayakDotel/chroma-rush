@@ -15,7 +15,7 @@ func _init() -> void:
 	_render(svg, 192, "android_main_192.png")
 	_render(svg, 432, "android_foreground_432.png", true)
 	var background := Image.create(432, 432, false, Image.FORMAT_RGBA8)
-	background.fill(Color("5B3FE0"))
+	background.fill(Color("5A3CE4"))
 	background.save_png(OUT + "android_background_432.png")
 	print("icons written to ", ProjectSettings.globalize_path(OUT))
 	quit()

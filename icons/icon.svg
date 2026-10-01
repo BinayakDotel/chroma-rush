@@ -1,36 +1,62 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Chroma Rush app icon: the three gate shapes as glossy raised pieces (no outlines) over a
+       road running to a glowing horizon. Rendered to PNGs by scripts/dev/render_icons.gd. -->
   <defs>
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#5B3FE0"/>
-      <stop offset="0.55" stop-color="#9B5CF0"/>
-      <stop offset="1" stop-color="#FF7EB3"/>
+      <stop offset="0" stop-color="#3A2BD6"/>
+      <stop offset="0.55" stop-color="#8A52F2"/>
+      <stop offset="1" stop-color="#FF86B5"/>
     </linearGradient>
-    <linearGradient id="road" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFF4E0"/>
-      <stop offset="1" stop-color="#FFFFFF"/>
-    </linearGradient>
-    <radialGradient id="sun" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#FFE7A0" stop-opacity="0.95"/>
-      <stop offset="1" stop-color="#FFE7A0" stop-opacity="0"/>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFF1B8" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#FFF1B8" stop-opacity="0"/>
     </radialGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE3BC"/>
+      <stop offset="1" stop-color="#FFF8EA"/>
+    </linearGradient>
+    <radialGradient id="orb" cx="0.36" cy="0.32" r="0.8">
+      <stop offset="0" stop-color="#FF8A93"/>
+      <stop offset="0.5" stop-color="#F53A4B"/>
+      <stop offset="1" stop-color="#DB1F38"/>
+    </radialGradient>
+    <linearGradient id="tri" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE25A"/>
+      <stop offset="1" stop-color="#FFC81A"/>
+    </linearGradient>
+    <linearGradient id="sq" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4C80FF"/>
+      <stop offset="1" stop-color="#2553F0"/>
+    </linearGradient>
   </defs>
   <rect width="1024" height="1024" fill="url(#sky)"/>
-  <circle cx="512" cy="470" r="300" fill="url(#sun)"/>
-  <!-- Road running to the horizon, with lane lines -->
-  <polygon points="60,1024 964,1024 560,500 464,500" fill="url(#road)"/>
-  <polygon points="60,1024 118,1024 480,500 464,500" fill="#E5324A"/>
-  <polygon points="906,1024 964,1024 560,500 544,500" fill="#E5324A"/>
-  <polygon points="352,1024 382,1024 500,500 492,500" fill="#E5324A" opacity="0.85"/>
-  <polygon points="642,1024 672,1024 532,500 524,500" fill="#E5324A" opacity="0.85"/>
-  <!-- The three gate shapes -->
-  <g stroke="#2A1650" stroke-width="26" stroke-linejoin="round">
-    <circle cx="232" cy="340" r="118" fill="#E61F33"/>
-    <polygon points="512,168 646,408 378,408" fill="#FFD61A"/>
-    <rect x="690" y="222" width="220" height="220" rx="26" fill="#1A4DE6"/>
+  <circle cx="512" cy="540" r="350" fill="url(#glow)"/>
+  <!-- Road with pale kerbs and light dashes between the lanes -->
+  <polygon points="30,1024 994,1024 576,540 448,540" fill="url(#road)"/>
+  <polygon points="30,1024 96,1024 458,540 448,540" fill="#FFFFFF"/>
+  <polygon points="928,1024 994,1024 576,540 566,540" fill="#FFFFFF"/>
+  <polygon points="477,579 484,579 469,637 458,637" fill="#FFFFFF" opacity="0.9"/>
+  <polygon points="437,705 451,705 427,792 409,792" fill="#FFFFFF" opacity="0.9"/>
+  <polygon points="381,879 404,879 368,1014 338,1014" fill="#FFFFFF" opacity="0.9"/>
+  <polygon points="540,579 547,579 566,637 555,637" fill="#FFFFFF" opacity="0.9"/>
+  <polygon points="573,705 587,705 615,792 597,792" fill="#FFFFFF" opacity="0.9"/>
+  <polygon points="620,879 643,879 686,1014 656,1014" fill="#FFFFFF" opacity="0.9"/>
+  <!-- Soft shadows the shapes cast on the sky -->
+  <g fill="#1B0F5C" opacity="0.22">
+    <circle cx="220" cy="372" r="126"/>
+    <polygon points="512,210 636,446 388,446" stroke="#1B0F5C" stroke-width="44" stroke-linejoin="round"/>
+    <rect x="684" y="250" width="236" height="236" rx="54"/>
   </g>
-  <g fill="#FFFFFF" opacity="0.55">
-    <circle cx="196" cy="300" r="30"/>
-    <circle cx="486" cy="290" r="22"/>
-    <circle cx="742" cy="276" r="26"/>
-  </g>
+  <!-- Red orb -->
+  <circle cx="220" cy="350" r="126" fill="#A9142C"/>
+  <circle cx="220" cy="326" r="126" fill="url(#orb)"/>
+  <circle cx="176" cy="278" r="32" fill="#FFFFFF" opacity="0.8"/>
+  <!-- Yellow triangle -->
+  <polygon points="512,188 636,424 388,424" fill="#C98F00" stroke="#C98F00" stroke-width="44" stroke-linejoin="round"/>
+  <polygon points="512,164 636,400 388,400" fill="url(#tri)" stroke="#FFD42A" stroke-width="44" stroke-linejoin="round"/>
+  <polygon points="512,228 576,354 448,354" fill="#FFF0A0" stroke="#FFF0A0" stroke-width="14" stroke-linejoin="round" opacity="0.9"/>
+  <!-- Blue square -->
+  <rect x="684" y="228" width="236" height="236" rx="54" fill="#1433A6"/>
+  <rect x="684" y="204" width="236" height="236" rx="54" fill="url(#sq)"/>
+  <rect x="716" y="234" width="88" height="54" rx="27" fill="#FFFFFF" opacity="0.32"/>
 </svg>
