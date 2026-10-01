@@ -254,6 +254,41 @@ static func shard_amount(amount: int, size := 30, on_card := false) -> HBoxConta
 	return row
 
 
+## One mission on a card: icon, what to do, a progress bar with "value / target", and the
+## shards it pays. `value` is the progress to show (see Missions.progress).
+static func mission_row(mission: Dictionary, value: int) -> PanelContainer:
+	var target := int(mission.target)
+	var done := value >= target
+	var chip := card(12, CARD_TINT, 22)
+	(chip.get_theme_stylebox("panel") as StyleBoxFlat).shadow_size = 0
+	var row := hbox(12)
+	chip.add_child(row)
+	var badge := pill(STYLES.primary[0] if done else STYLES.sky[0], Vector2(9, 9))
+	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	badge.add_child(UiIcon.make("check" if done else Missions.icon(mission), Color.WHITE, Vector2(28, 28)))
+	row.add_child(badge)
+	var info := vbox(4)
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(info)
+	info.add_child(wrapped(text(Missions.describe(mission), 19, true, 800)))
+	var progress := hbox(10)
+	info.add_child(progress)
+	var meter := bar(0, 12, STYLES.primary[0] if done else GOLD, Color(0.84, 0.82, 0.92))
+	(meter.get_theme_stylebox("background") as StyleBoxFlat).set_border_width_all(0)
+	meter.value = float(value) / maxf(target, 1.0)
+	meter.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	meter.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	progress.add_child(meter)
+	var count := text("DONE" if done else "%s / %s" % [_thousands(value), _thousands(target)], 15, true, 900)
+	count.label_settings.font_color = STYLES.primary[1] if done else INK_SOFT
+	progress.add_child(count)
+	var reward := shard_amount(Missions.payout(mission), 22, true)
+	(reward.get_node("Amount") as Label).text = "+" + (reward.get_node("Amount") as Label).text
+	reward.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(reward)
+	return chip
+
+
 static func vbox(separation := 16) -> VBoxContainer:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", separation)

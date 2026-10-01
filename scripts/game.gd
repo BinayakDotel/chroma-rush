@@ -52,7 +52,7 @@ var fuel := 1.0
 var shield := false
 var magnet_left := 0.0
 var world_index := 0
-## Counters for this run, for tuning and (later) missions.
+## Counters for this run, for tuning and missions.
 var run_stats := {}
 ## Set only by the developer harness: obstacles are smashed instead of ending the run.
 var dev_god := false
@@ -69,6 +69,8 @@ var _swiped := false
 var _sun_dir := Vector3(0.0, 0.5, -1.0)
 var _coast := -1.0  # seconds spent rolling to a stop on an empty tank; -1 while fuelled
 var _drop_cooldown := 0.0
+## Seconds until the missions are next checked against this run's counters.
+var _mission_check := 0.0
 var _next_power_s := Powers.FIRST_AT
 ## Upgrade effects, read at the start of each run (see Economy.UPGRADES).
 var _prism_duration := 5.0
@@ -191,7 +193,8 @@ func _new_run() -> void:
 	fuel = 1.0
 	_coast = -1.0
 	_drop_cooldown = 0.0
-	run_stats = {"fuel_taken": 0, "fuel_missed": 0, "drops": 0, "powers": 0, "bonus_shards": 0}
+	run_stats = {"fuel_taken": 0, "fuel_missed": 0, "drops": 0, "powers": 0, "bonus_shards": 0,
+		"hurdles": 0, "smashes": 0, "overdrives": 0}
 	shield = false
 	magnet_left = 0.0
 	_next_power_s = Powers.FIRST_AT
@@ -412,6 +415,10 @@ func _play_tick(delta: float) -> void:
 		return
 	if _first_run:
 		_tutorial_hints()
+	_mission_check -= delta
+	if _mission_check <= 0.0:
+		_mission_check = 0.25
+		_check_missions()
 
 	score += speed * delta * 0.5 * _multiplier()
 	var travelled := int(distance - START_S)
@@ -522,6 +529,7 @@ func _resolve_row(row: Dictionary) -> void:
 		return
 	if prism_left > 0.0:
 		track.smash_cell(row, lane)
+		run_stats.smashes += 1
 		score += 50 * _multiplier()
 		audio.play("smash", randf_range(0.9, 1.2))
 		player.sparkle(Color.WHITE, true)
@@ -534,6 +542,7 @@ func _resolve_row(row: Dictionary) -> void:
 		if player.height + Racer.HOVER > Track.LOW_SIZE.y:
 			combo += 1
 			best_combo = maxi(best_combo, combo)
+			run_stats.hurdles += 1
 			score += 20 * _multiplier()
 			_add_meter(0.06)
 			audio.play("gate", 0.8)
@@ -746,6 +755,7 @@ func _activate_prism() -> void:
 	if state != State.PLAYING or prism_left > 0.0 or meter < 1.0:
 		return
 	prism_left = _prism_duration
+	run_stats.overdrives += 1
 	player.rainbow = true
 	audio.play("prism")
 	hud.hint("PRISM OVERDRIVE!", UiKit.GOLD)
@@ -815,6 +825,21 @@ func _end_run(title: String, explode: bool) -> void:
 		_show_results()
 
 
+## This run's counters in the form Missions expects (see Missions.STATS).
+func _mission_run() -> Dictionary:
+	return {"gates": gates, "metres": int(distance - START_S), "orbs": orbs_collected, "hurdles": int(run_stats.hurdles),
+		"fuel": int(run_stats.fuel_taken), "powers": int(run_stats.powers), "smashes": int(run_stats.smashes),
+		"overdrives": int(run_stats.overdrives)}
+
+
+## Pays and announces any mission this run has just completed.
+func _check_missions() -> void:
+	for mission in Missions.check(_mission_run()):
+		hud.hint("MISSION COMPLETE!  +%d" % Missions.payout(mission), UiKit.GOLD, 1.8)
+		audio.play("unlock", 1.1)
+		Settings.vibrate(0.5)
+
+
 func _show_results() -> void:
 	var travelled := int(distance - START_S)
 	_run_shards = (Economy.run_shards(orbs_collected, travelled) + int(run_stats.bonus_shards)) * Profile.shard_multiplier()
@@ -822,6 +847,14 @@ func _show_results() -> void:
 	var final := int(score)
 	var can_revive := not _revive_used and Ads.rewarded_ready()
 	var can_token := not _revive_used and Profile.revive_tokens > 0
+	# Where the missions stand after this run, and what the shards are building towards.
+	var run := _mission_run()
+	Missions.check(run)
+	var missions := Profile.missions.map(func(mission: Dictionary) -> Dictionary:
+		return {"mission": mission.duplicate(), "value": Missions.progress(mission, run)})
+	var goal := Profile.next_goal()
+	if not goal.is_empty():
+		goal.have = Profile.shards + _run_shards
 	ui.show_results({
 		"title": _end_title,
 		"score": final,
@@ -834,6 +867,8 @@ func _show_results() -> void:
 		"can_revive": can_revive,
 		"revive_tokens": Profile.revive_tokens if can_token else 0,
 		"can_double": _run_shards > 0 and Ads.rewarded_ready(),
+		"missions": missions,
+		"goal": goal,
 	})
 	# Without a second chance on offer, the run is over: save it straight away.
 	if not can_revive and not can_token:
@@ -847,6 +882,7 @@ func _record_run() -> void:
 	_recorded = true
 	var travelled := distance - START_S
 	Profile.add_shards(_run_shards)
+	Missions.finish_run(_mission_run())
 	Profile.record_run(_themes[world_index].id, int(score), travelled, gates, orbs_collected, best_combo)
 
 

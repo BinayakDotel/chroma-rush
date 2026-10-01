@@ -57,6 +57,10 @@ func _draw() -> void:
 				draw_line(p.call(0.5, 0.5) + dir * s * 0.28, p.call(0.5, 0.5) + dir * s * 0.46, color, s * 0.14)
 			draw_circle(p.call(0.5, 0.5), s * 0.32, color)
 			draw_circle(p.call(0.5, 0.5), s * 0.13, _cut())
+		"target":
+			draw_arc(p.call(0.5, 0.5), s * 0.4, 0.0, TAU, 32, color, w, true)
+			draw_arc(p.call(0.5, 0.5), s * 0.21, 0.0, TAU, 24, color, w, true)
+			draw_circle(p.call(0.5, 0.5), s * 0.07, color)
 		"bag":
 			draw_rect(Rect2(p.call(0.14, 0.34), Vector2(0.72, 0.56) * s), color)
 			draw_arc(p.call(0.5, 0.34), s * 0.2, PI, TAU, 16, color, w, true)

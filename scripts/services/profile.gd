@@ -7,6 +7,7 @@ signal worlds_changed
 signal entitlements_changed
 signal revive_tokens_changed(count: int)
 signal upgrades_changed
+signal missions_changed
 
 const PATH := "user://profile.cfg"
 const LEGACY_PATH := "user://chroma_rush.cfg"
@@ -27,6 +28,9 @@ var bests := {}
 var unlocked: Array[String] = [FREE_WORLD]
 ## Upgrade id -> level bought (see Economy.UPGRADES).
 var upgrades := {}
+## The current goals (see Missions) and how many have been completed so far.
+var missions: Array = []
+var missions_done := 0
 ## Entitlement name -> true. Purchases are also restorable from the store.
 var entitlements := {}
 var stats := {"distance": 0.0, "gates": 0, "orbs": 0, "best_combo": 0, "best_distance": 0}
@@ -40,6 +44,7 @@ func _ready() -> void:
 		use_sandbox()
 		return
 	_load()
+	Missions.refill()
 
 
 ## Developer harness only: a throwaway save so tests never touch real progress. Chosen at
@@ -47,9 +52,8 @@ func _ready() -> void:
 func use_sandbox() -> void:
 	DirAccess.make_dir_recursive_absolute(SANDBOX_PATH.get_base_dir())
 	_path = SANDBOX_PATH
-	reset_progress()
 	entitlements.clear()
-	save()
+	reset_progress()
 
 
 func best(world_id: String) -> int:
@@ -133,6 +137,21 @@ func add_shards(amount: int) -> void:
 	shards_changed.emit(shards)
 
 
+## The next thing worth saving for: the cheapest upgrade level or world not bought yet.
+## Returns {name, cost}, or {} when everything is owned.
+func next_goal() -> Dictionary:
+	var goal := {}
+	for id: String in Economy.UPGRADES:
+		var cost := Economy.upgrade_cost(id, upgrade_level(id))
+		if cost >= 0 and (goal.is_empty() or cost < int(goal.cost)):
+			goal = {"name": "%s LEVEL %d" % [Economy.UPGRADES[id].name, upgrade_level(id) + 1], "cost": cost}
+	for world: Dictionary in Themes.all():
+		var cost := Economy.world_cost(world.id)
+		if not is_unlocked(world.id) and (goal.is_empty() or cost < int(goal.cost)):
+			goal = {"name": str(world.name), "cost": cost}
+	return goal
+
+
 ## Banks a revive from a Phoenix gem. Returns false when the bank is already full.
 func add_revive_token() -> bool:
 	if revive_tokens >= MAX_REVIVE_TOKENS:
@@ -191,11 +210,14 @@ func reset_progress() -> void:
 	revive_tokens = 0
 	upgrades.clear()
 	lifetime_runs = 0
+	missions.clear()
+	missions_done = 0
 	bests.clear()
 	unlocked.assign([FREE_WORLD])
 	stats = {"distance": 0.0, "gates": 0, "orbs": 0, "best_combo": 0, "best_distance": 0}
 	ads_state = {"runs_since": 0, "last_unix": 0.0}
 	save()
+	Missions.refill()
 	shards_changed.emit(shards)
 	worlds_changed.emit()
 	revive_tokens_changed.emit(revive_tokens)
@@ -214,6 +236,8 @@ func save() -> void:
 	cfg.set_value("progress", "bests", bests)
 	cfg.set_value("progress", "unlocked", unlocked)
 	cfg.set_value("progress", "stats", stats)
+	cfg.set_value("progress", "missions", missions)
+	cfg.set_value("progress", "missions_done", missions_done)
 	cfg.set_value("store", "entitlements", entitlements)
 	cfg.set_value("ads", "state", ads_state)
 	SaveIO.write(cfg, _path)
@@ -240,6 +264,12 @@ func _load() -> void:
 			if not str(world) in unlocked:
 				unlocked.append(str(world))
 	stats.merge(_dict(cfg.get_value("progress", "stats", {})), true)
+	missions_done = maxi(int(cfg.get_value("progress", "missions_done", 0)), 0)
+	var saved_missions: Variant = cfg.get_value("progress", "missions", [])
+	if saved_missions is Array:
+		for mission: Variant in saved_missions:
+			if mission is Dictionary and mission.has_all(["kind", "target", "reward", "progress", "done"]):
+				missions.append(mission)
 	entitlements = _dict(cfg.get_value("store", "entitlements", {}))
 	ads_state.merge(_dict(cfg.get_value("ads", "state", {})), true)
 	if not is_unlocked(selected_world):

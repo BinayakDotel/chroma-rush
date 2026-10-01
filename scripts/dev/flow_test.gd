@@ -35,6 +35,8 @@ func run(host: Node) -> void:
 
 	await _power_gem_checks()
 
+	await _mission_checks()
+
 	ui.pause_requested.emit()
 	await _frames(2)
 	_check("pause freezes the tree", _state() == "PAUSED" and harness.get_tree().paused)
@@ -59,10 +61,11 @@ func run(host: Node) -> void:
 	_check("no second chance after using it", not bool(ui.results.get("_revive").visible))
 	_check("run is recorded once results show without a revive", Profile.lifetime_runs == runs_before + 1)
 	var shards_after_run := Profile.shards
-	_check("shards are awarded for orbs and distance", shards_after_run >= 40)
+	var run_shards := int(game.get("_run_shards"))
+	_check("shards are awarded for orbs and distance", run_shards >= 40 and shards_after_run >= run_shards)
 	ui.double_shards_requested.emit()
 	await _seconds(3.5)
-	_check("double shards adds the run's shards again", Profile.shards == shards_after_run * 2)
+	_check("double shards adds the run's shards again", Profile.shards == shards_after_run + run_shards)
 
 	ui.restart_requested.emit()
 	await _frames(5)
@@ -175,6 +178,31 @@ func _power_gem_checks() -> void:
 	game.set("fuel", 1.0)
 	var placed := track.place_power(Powers.Kind.MAGNET, distance + 40.0, distance + 120.0, 1)
 	_check("a power gem can be placed on the road ahead", placed and not track.powers.is_empty())
+
+
+## Missions: three at a time, completed and paid mid-run, replaced when the run is recorded.
+func _mission_checks() -> void:
+	_check("there are three missions", Profile.missions.size() == Missions.SLOTS)
+	var first: Dictionary = Profile.missions[0]
+	var stat: String = Missions.KINDS[first.kind].stat
+	var shards_before := Profile.shards
+	var done_before := Profile.missions_done
+	var run := {stat: int(first.target) - 1}
+	_check("a mission short of its target is not completed", Missions.check(run).is_empty() and not first.done)
+	run[stat] = int(first.target)
+	var completed := Missions.check(run)
+	_check("reaching the target completes the mission and pays its shards",
+		completed.size() == 1 and first.done and Profile.shards == shards_before + Missions.payout(first)
+		and Profile.missions_done == done_before + 1)
+	_check("a completed mission is not paid twice", Missions.check(run).is_empty())
+	Missions.finish_run(run)
+	_check("a finished run replaces the completed mission",
+		Profile.missions.size() == Missions.SLOTS and not Profile.missions.any(func(m: Dictionary) -> bool: return m.done))
+	ui.open_missions()
+	await _frames(3)
+	_check("the missions screen opens", ui.has_overlay())
+	ui.handle_back()
+	await _frames(12)
 
 
 func _state() -> String:
