@@ -65,17 +65,17 @@ func _card(id: String) -> Control:
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(info)
 	info.add_child(UiKit.text(spec.name, 26, true, 900))
-	var blurb := UiKit.text(spec.blurb, 17, true, 700)
+	var blurb := UiKit.text(spec.blurb, 19, true, 700)
 	blurb.label_settings.font_color = UiKit.INK_SOFT
 	info.add_child(blurb)
 	var pips := UiKit.hbox(6)
 	for i in top:
 		pips.add_child(UiIcon.make("circle", UiKit.STYLES.sky[0] if i < level else Color(0.82, 0.8, 0.9), Vector2(16, 16)))
-	var now := UiKit.text("  %s" % Economy.upgrade_label(id, level), 17, true, 900)
+	var now := UiKit.text("  %s" % Economy.upgrade_label(id, level), 19, true, 900)
 	now.label_settings.font_color = UiKit.INK
 	pips.add_child(now)
 	if level < top:
-		var next := UiKit.text("→ %s" % Economy.upgrade_label(id, level + 1), 17, true, 900)
+		var next := UiKit.text("→ %s" % Economy.upgrade_label(id, level + 1), 19, true, 900)
 		next.label_settings.font_color = UiKit.STYLES.primary[1]
 		pips.add_child(next)
 	info.add_child(pips)
