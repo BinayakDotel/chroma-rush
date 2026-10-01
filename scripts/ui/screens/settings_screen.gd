@@ -13,16 +13,10 @@ func _is_modal() -> bool:
 
 func build() -> void:
 	dim(0.55)
+	closes_on_outside_tap = true
 	var content := centered_card(600, 24)
 	content.add_child(header("SETTINGS"))
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.custom_minimum_size.y = 520
-	scroll.name = "Scroll"
-	content.add_child(scroll)
-	var list := UiKit.vbox(12)
-	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(list)
+	var list := scroll_list(content)
 
 	_section(list, "AUDIO")
 	_slider_row(list, "music", "Music", &"music_volume")

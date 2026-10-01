@@ -138,11 +138,17 @@ func run(host: Node) -> void:
 	await _frames(2)
 	_check("high quality turns shadows back on", sun.shadow_enabled)
 
-	ui.open_settings()
-	await _frames(2)
-	ui.handle_back()
-	await _frames(12)
-	_check("back closes the settings overlay", not ui.has_overlay())
+	for opener: Callable in [ui.open_settings, ui.open_shop, ui.open_upgrades]:
+		opener.call()
+		await _frames(4)
+		var scroll: Control = ui.top_overlay().find_child("Scroll", true, false)
+		var blockers := scroll.find_children("*", "Control", true, false).filter(func(c: Control) -> bool:
+			return c.mouse_filter == Control.MOUSE_FILTER_STOP and not c is Slider and not c is ScrollBar)
+		_check("%s list scrolls from anywhere a finger lands" % ui.top_overlay().get_script().resource_path.get_file().get_basename(),
+			blockers.is_empty())
+		ui.handle_back()
+		await _frames(12)
+	_check("back closes the overlays", not ui.has_overlay())
 
 	print("[flow] %s (%d failure%s)" % ["PASSED" if failures == 0 else "FAILED", failures, "" if failures == 1 else "s"])
 	harness.get_tree().quit(1 if failures > 0 else 0)
