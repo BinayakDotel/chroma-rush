@@ -68,7 +68,7 @@ var _touch_start := Vector2.ZERO
 var _swiped := false
 var _sun_dir := Vector3(0.0, 0.5, -1.0)
 var _coast := -1.0  # seconds spent rolling to a stop on an empty tank; -1 while fuelled
-var _rescue_cooldown := 0.0
+var _drop_cooldown := 0.0
 var _next_power_s := Powers.FIRST_AT
 ## Upgrade effects, read at the start of each run (see Economy.UPGRADES).
 var _prism_duration := 5.0
@@ -190,8 +190,8 @@ func _new_run() -> void:
 	grace_left = 0.0
 	fuel = 1.0
 	_coast = -1.0
-	_rescue_cooldown = 0.0
-	run_stats = {"fuel_taken": 0, "fuel_missed": 0, "rescues": 0, "powers": 0, "bonus_shards": 0}
+	_drop_cooldown = 0.0
+	run_stats = {"fuel_taken": 0, "fuel_missed": 0, "drops": 0, "powers": 0, "bonus_shards": 0}
 	shield = false
 	magnet_left = 0.0
 	_next_power_s = Powers.FIRST_AT
@@ -402,7 +402,7 @@ func _play_tick(delta: float) -> void:
 	_check_orbs()
 	_check_fuel()
 	_check_powers()
-	_maybe_rescue(delta)
+	_maybe_drop_fuel(delta)
 	_maybe_place_power()
 	_check_rows()
 	if state != State.PLAYING:
@@ -617,7 +617,7 @@ func _check_fuel() -> void:
 		run_stats.fuel_taken += 1
 		track.collect_fuel(pickup)
 		player.sparkle(_themes[world_index].fuel_color, true)
-		fuel = minf(fuel + Pacing.FUEL_PICKUP, 1.0)
+		fuel = minf(fuel + float(pickup.amount), 1.0)
 		if fuel > LOW_FUEL:
 			_low_fuel_warned = false
 		if _coast >= 0.0:
@@ -630,21 +630,26 @@ func _check_fuel() -> void:
 		Settings.vibrate(0.2)
 
 
-## Running low with no pickup coming up: place one a few seconds ahead, near the player's
-## lane. Missing pickups costs time and pressure, never the whole run by surprise.
-func _maybe_rescue(delta: float) -> void:
-	_rescue_cooldown = maxf(_rescue_cooldown - delta, 0.0)
-	if fuel >= Pacing.RESCUE_BELOW or _rescue_cooldown > 0.0 or prism_left > 0.0:
+## Last resort (see Pacing.DROP_*): the tank is nearly empty and no pickup can be reached
+## before it runs dry, so a small fuel drop lands a few seconds ahead. It is announced, it is
+## rare, and it is not placed in the player's lane: a rescue to earn, not a free refill.
+func _maybe_drop_fuel(delta: float) -> void:
+	_drop_cooldown = maxf(_drop_cooldown - delta, 0.0)
+	if fuel >= Pacing.DROP_BELOW or _drop_cooldown > 0.0 or prism_left > 0.0 or _coast >= COAST_TIME * 0.5:
 		return
-	var horizon := distance + speed * Pacing.RESCUE_LOOKAHEAD
+	var seconds_left := fuel * Pacing.tank_time(distance) * _tank_bonus + COAST_TIME - maxf(_coast, 0.0)
+	var reach := distance + speed * seconds_left * 0.9
 	for pickup in track.fuels:
-		if not pickup.done and pickup.s > distance + 1.0 and pickup.s < horizon:
+		if not pickup.done and pickup.s > distance + 1.0 and pickup.s < reach:
 			return
-	var near := distance + speed * Pacing.RESCUE_AHEAD.x
-	var far := distance + speed * Pacing.RESCUE_AHEAD.y
-	if track.place_fuel(near, far, player.lane):
-		run_stats.rescues += 1
-		_rescue_cooldown = Pacing.RESCUE_COOLDOWN
+	var near := distance + speed * Pacing.DROP_AHEAD.x
+	var far := distance + speed * Pacing.DROP_AHEAD.y
+	var lane := (player.lane + 1 + randi() % 2) % Defs.LANES
+	if track.drop_fuel(near, far, lane, Pacing.DROP_FUEL):
+		run_stats.drops += 1
+		_drop_cooldown = Pacing.DROP_COOLDOWN
+		hud.hint("FUEL DROP!", _themes[world_index].fuel_color, 1.2)
+		audio.play("start", 0.8)
 
 
 func _check_powers() -> void:
@@ -708,7 +713,7 @@ func _pick_power() -> Powers.Kind:
 	if shield:
 		weights[Powers.Kind.SHIELD] = 0.0
 	if fuel < 0.5:
-		weights[Powers.Kind.FULL_TANK] *= 3.0
+		weights[Powers.Kind.FULL_TANK] *= 1.6
 	elif fuel > 0.8:
 		weights[Powers.Kind.FULL_TANK] *= 0.3
 	if meter > 0.6 or prism_left > 0.0:
