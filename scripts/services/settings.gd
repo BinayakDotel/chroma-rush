@@ -23,7 +23,7 @@ var color_symbols := true
 ## Turns off camera shake and the speed-line overlay.
 var reduce_motion := false
 var show_fps := false
-var quality: int = Quality.MEDIUM if OS.has_feature("mobile") else Quality.HIGH
+var quality: int = Quality.MEDIUM if Defs.touch_device() else Quality.HIGH
 var _path := PATH
 
 

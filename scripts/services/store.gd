@@ -67,6 +67,11 @@ func is_available() -> bool:
 	return backend != null and backend.is_ready()
 
 
+## False where there is no store at all (web builds); the UI then leaves the shop out.
+func is_supported() -> bool:
+	return backend != null
+
+
 func is_busy() -> bool:
 	return _busy
 

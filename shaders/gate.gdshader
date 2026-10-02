@@ -6,10 +6,10 @@ render_mode unshaded, cull_disabled, depth_draw_never, shadows_disabled;
 // symbol (circle / triangle / square) so a gate never relies on hue alone. Nothing is outlined
 // in a dark colour: the rim's glow and the symbol's soft shadow do that job.
 // `burst` plays when the player passes through; `fade` dissolves the panel.
-instance uniform vec4 color : source_color = vec4(0.9, 0.12, 0.2, 1.0);
-instance uniform float symbol = 0.0;
-instance uniform float burst = 0.0;
-instance uniform float fade = 1.0;
+uniform vec4 color : source_color = vec4(0.9, 0.12, 0.2, 1.0);
+uniform float symbol = 0.0;
+uniform float burst = 0.0;
+uniform float fade = 1.0;
 uniform float show_symbols = 1.0;
 uniform vec2 size = vec2(2.1, 2.7);
 uniform float corner_radius = 0.34;

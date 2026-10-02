@@ -42,21 +42,24 @@ func build() -> void:
 	list.add_child(quality)
 	_refresh_quality()
 
-	_section(list, "PURCHASES")
-	var restore := UiKit.button("RESTORE PURCHASES", "sky", Vector2(0, 64), 26, "restore")
-	restore.pressed.connect(Store.restore)
-	restore.disabled = not Store.is_available()
-	list.add_child(restore)
+	if Store.is_supported():
+		_section(list, "PURCHASES")
+		var restore := UiKit.button("RESTORE PURCHASES", "sky", Vector2(0, 64), 26, "restore")
+		restore.pressed.connect(Store.restore)
+		restore.disabled = not Store.is_available()
+		list.add_child(restore)
 
 	_section(list, "ABOUT")
 	var how := UiKit.button("HOW TO PLAY", "light", Vector2(0, 60), 24, "help")
 	how.pressed.connect(func() -> void: ui.open_howto(false))
 	list.add_child(how)
 	var links := UiKit.hbox(10)
-	var privacy := UiKit.button("PRIVACY", "light", Vector2(0, 60), 22, "link")
-	privacy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	privacy.pressed.connect(func() -> void: OS.shell_open(PRIVACY_URL))
-	links.add_child(privacy)
+	# Web portals show their own privacy policy beside the game.
+	if not OS.has_feature("web"):
+		var privacy := UiKit.button("PRIVACY", "light", Vector2(0, 60), 22, "link")
+		privacy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		privacy.pressed.connect(func() -> void: OS.shell_open(PRIVACY_URL))
+		links.add_child(privacy)
 	var support := UiKit.button("SUPPORT", "light", Vector2(0, 60), 22, "link")
 	support.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	support.pressed.connect(func() -> void: OS.shell_open(SUPPORT_URL))

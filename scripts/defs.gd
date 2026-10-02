@@ -20,6 +20,13 @@ enum Symbol { CIRCLE, TRIANGLE, SQUARE }
 const SYMBOLS: Array[int] = [Symbol.CIRCLE, Symbol.TRIANGLE, Symbol.SQUARE]
 
 
+## True on phones and tablets, including in a browser, where OS.has_feature("mobile") is false.
+## Decides touch hints over keyboard hints and the lighter graphics defaults.
+static func touch_device() -> bool:
+	return (OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")
+		or DevMode.touch())
+
+
 static func lane_x(lane: int) -> float:
 	return (lane - 1) * LANE_WIDTH
 

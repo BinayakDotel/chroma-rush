@@ -80,6 +80,7 @@ var _debris_mesh: ArrayMesh
 var _bubble := MeshInstance3D.new()
 var _shadow := MeshInstance3D.new()
 var _underglow := MeshInstance3D.new()
+var _underglow_material := Look.blob()
 var _ghosted := false
 var _sparkles_small: Array[GPUParticles3D] = []
 var _sparkles_big: Array[GPUParticles3D] = []
@@ -350,7 +351,7 @@ func _move_sideways(delta: float) -> void:
 func _apply_color(c: Color) -> void:
 	display_color = c
 	_paint.set_shader_parameter("tint", c)
-	_underglow.set_instance_shader_parameter("shade", Color(c.r, c.g, c.b, 0.34))
+	_underglow_material.set_shader_parameter("shade", Color(c.r, c.g, c.b, 0.34))
 
 
 ## Invulnerable: the whole vehicle pulses between solid and see-through (no hard blinking).
@@ -392,9 +393,8 @@ func _update_wobblers(delta: float, lateral_accel: float, vertical_accel: float)
 
 ## A soft dark patch and a wider glow in the paint colour, flat on the road under the vehicle.
 func _setup_ground() -> void:
-	_underglow.mesh = Look.patch(3.0, 0.025, Look.blob())
-	_shadow.mesh = Look.patch(2.3, 0.035, Look.blob())
-	_shadow.set_instance_shader_parameter("shade", Color(0.05, 0.04, 0.12, 0.42))
+	_underglow.mesh = Look.patch(3.0, 0.025, _underglow_material)
+	_shadow.mesh = Look.patch(2.3, 0.035, Look.blob(false, Color(0.05, 0.04, 0.12, 0.42)))
 	for patch: MeshInstance3D in [_underglow, _shadow]:
 		patch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(patch)

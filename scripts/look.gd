@@ -54,11 +54,12 @@ static func beam(color: Color, strength := 0.4) -> StandardMaterial3D:
 
 
 ## A soft round patch on the road (shaders/blob.gdshader): a contact shadow, or with `ring` a
-## glowing ring. Tint it per instance with the `shade` shader parameter.
-static func blob(ring := false) -> ShaderMaterial:
+## glowing ring, tinted with `shade`.
+static func blob(ring := false, shade := Color(0.0, 0.0, 0.0, 0.38)) -> ShaderMaterial:
 	var material := ShaderMaterial.new()
 	material.shader = BlobShader
 	material.set_shader_parameter("ring", 1.0 if ring else 0.0)
+	material.set_shader_parameter("shade", shade)
 	material.render_priority = -1
 	return material
 

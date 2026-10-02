@@ -14,6 +14,9 @@ extends Node
 ##   --time-scale=<x>      speed the simulation up
 ##   --tutorial-done       skip the first-run how-to (saves go to user://dev, never the real profile)
 ##   --hide-ui             hide every screen (clean shots of the 3D scene)
+##   --touch               show the phone UI (touch hints, no key labels) on desktop
+##   --keep-running        don't pause when the window loses focus and keep drawing while it
+##                         is hidden (for recording a movie while working in another window)
 ##   --screen-delay=<s>    seconds of play before --screen=pause|results opens (default 2)
 ##   --flow-test           run the end-to-end flow checks in flow_test.gd and exit
 ##   --screen=<name>       open a screen for screenshots: settings | shop | upgrades | missions |
@@ -21,6 +24,10 @@ extends Node
 ##   --shards=<n>          start with this many shards
 ##   --showcase=<yaw,...>  close-up camera on the vehicle at this angle (degrees); with several
 ##                         angles, each screenshot uses the next one
+##   --showcase-cam=<height,distance,fov,lead>
+##                         with --showcase: the orbit's height (0.45) and distance (3.2), the
+##                         field of view (45) and how far ahead of the vehicle to aim (0 m),
+##                         e.g. a low, wide shot from behind for cover art
 ##   --bot=human           with --autoplay: drive like a person instead of perfectly. It looks
 ##                         at each row only after passing the previous one, reacts after
 ##                         --react=<s> (default 0.7, +-25%), needs --action=<s> (default 0.25)
@@ -88,6 +95,8 @@ func _ready() -> void:
 	for t in str(_args.get("shots", "")).split(",", false):
 		_shots.append(float(t))
 	await get_tree().process_frame
+	if _args.has("keep-running"):
+		game.set("dev_keep_running", true)
 	if _args.has("world"):
 		game.call("dev_select_world", str(_args.world))
 	if _args.has("autoplay"):
@@ -124,6 +133,10 @@ func _process(delta: float) -> void:
 	if _args.has("showcase"):
 		var angles := str(_args.showcase).split(",", false)
 		_showcase(deg_to_rad(float(angles[mini(_shots_taken, angles.size() - 1)])))
+	if _args.has("keep-running") and not DisplayServer.window_can_draw():
+		# The engine skips drawing while the window is hidden (behind a full-screen app, on
+		# another desktop, the display asleep), and a movie would repeat one frame.
+		RenderingServer.force_draw(false)
 	if not _args.has("autoplay"):
 		return
 	if _args.has("perf"):
@@ -371,9 +384,12 @@ func _showcase(yaw: float) -> void:
 	var cam: Camera3D = game.get("cam")
 	var frame := player.global_transform
 	var center := player.body_position() + frame.basis.y * 0.25
-	var offset := frame.basis * (Vector3(sin(yaw), 0.45, -cos(yaw)) * 3.2)
-	cam.global_transform = Transform3D(Basis.IDENTITY, center + offset).looking_at(center, frame.basis.y)
-	cam.fov = 45.0
+	# height, distance, fov, lead
+	var shot := str(_args.get("showcase-cam", "0.45,3.2,45,0")).split_floats(",")
+	var offset := frame.basis * (Vector3(sin(yaw), shot[0], -cos(yaw)) * shot[1])
+	var target := center - frame.basis.z * shot[3]
+	cam.global_transform = Transform3D(Basis.IDENTITY, center + offset).looking_at(target, frame.basis.y)
+	cam.fov = shot[2]
 	(cam as ChaseCamera).frame_offset = Vector2.ZERO
 
 

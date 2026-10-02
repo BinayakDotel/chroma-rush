@@ -190,7 +190,7 @@ func _make_swatch(i: int) -> Button:
 	var icon := UiIcon.make(UiIcon.symbol_name(i), Color.WHITE, Vector2(40, 40))
 	b.add_child(icon)
 	var key := UiKit.text(KEYS[i], 16, false, 900)
-	key.visible = not OS.has_feature("mobile")
+	key.visible = not Defs.touch_device()
 	b.add_child(key)
 	b.resized.connect(func() -> void:
 		var box := icon.custom_minimum_size
@@ -308,7 +308,7 @@ func set_meter(value: float, is_ready: bool, active: bool) -> void:
 	if active:
 		_meter_label.text = "PRISM OVERDRIVE!"
 	elif is_ready:
-		_meter_label.text = "PRISM READY!" if OS.has_feature("mobile") else "PRISM READY!  (SHIFT)"
+		_meter_label.text = "PRISM READY!" if Defs.touch_device() else "PRISM READY!  (SHIFT)"
 	else:
 		_meter_label.text = "PRISM"
 		_meter_fill.bg_color = Color(1, 1, 1, 0.9)
