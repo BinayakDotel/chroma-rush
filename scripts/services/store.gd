@@ -11,7 +11,7 @@ signal products_updated
 signal purchase_finished(product_id: String, ok: bool, message: String)
 signal restore_finished(ok: bool, message: String)
 
-const ID_PREFIX := "com.whitehatengineering.chromarush."
+const ID_PREFIX := "com.binayakdotel.chromarush."
 
 ## Catalogue. `grants` are entitlements; `shards` are added for consumables.
 ## `live` = false keeps a product out of the shop until it is switched on.

@@ -173,7 +173,8 @@ Before a store release:
 - Install the Android export template (Editor > Manage Export Templates).
 - Add the [Google Play Billing](https://github.com/godot-sdk-integrations/godot-google-play-billing), [StoreKit 2](https://github.com/godot-sdk-integrations/godot-storekit2) and [AdMob](https://github.com/godot-sdk-integrations/godot-admob) plugins and enable them in the presets.
 - Create the products in Play Console and App Store Connect with the IDs in `scripts/services/store.gd`.
-- Put the AdMob ad unit IDs in `scripts/services/ads_admob.gd` and the privacy / support links in `scripts/ui/screens/settings_screen.gd`.
+- Put the AdMob ad unit IDs in `scripts/services/ads_admob.gd` and the privacy / support links in `scripts/ui/screens/settings_screen.gd` (both are empty, and hidden, until then).
+- The app and product IDs use `com.binayakdotel.chromarush` (`export_presets.cfg`, `scripts/services/store.gd`); change them there before the first store upload if the game ships under another name.
 - Set up the Android keystore, and replace the free personal Apple team in the iOS preset with the paid team.
 
 The logo's kart, the app icon and the splash are rendered from the game's own model. To regenerate them (after changing the kart or the logo), run this with a window, then re-import:
