@@ -86,12 +86,13 @@ var _next_fuel_s := FIRST_FUEL
 var _kerb_material: ShaderMaterial
 var _kerb_color := Color.WHITE
 var _skirt_color := Color.GRAY
-var _orb_material := ShaderMaterial.new()
 var _shadow_material := Look.blob()
 var _halo_mesh := Look.patch(2.6, 0.03, Look.blob(true))
+## Halo ring materials, one per pickup colour.
+var _halo_materials := {}
 var _gate_mesh := QuadMesh.new()
 var _gem_meshes: Array[ArrayMesh] = []
-## Per power kind: {mesh, beam}, built once.
+## Per power kind: {mesh, material, beam}, built once.
 var _power_looks := {}
 
 
@@ -102,13 +103,12 @@ func _ready() -> void:
 	gate_material.shader = GateShader
 	gate_material.set_shader_parameter("size", GATE_SIZE)
 	gate_material.render_priority = 1
-	_orb_material.shader = OrbShader
 
 	_gate_mesh.size = GATE_SIZE
 	_gate_mesh.material = gate_material
 	for slot in Defs.COLORS.size():
 		# Each gem carries its own soft shadow on the road beneath it.
-		_gem_meshes.append(Look.patch(1.0, 0.03 - ORB_HEIGHT, _shadow_material, Obstacles.gem(slot, _orb_material)))
+		_gem_meshes.append(Look.patch(1.0, 0.03 - ORB_HEIGHT, _shadow_material, Obstacles.gem(slot, _orb_material(Defs.COLORS[slot]))))
 	_build_power_looks()
 
 	for noise: FastNoiseLite in [_turn_noise, _hill_noise]:
@@ -128,7 +128,12 @@ func set_theme(theme: Dictionary) -> void:
 
 
 func set_symbols_visible(show: bool) -> void:
-	gate_material.set_shader_parameter("show_symbols", 1.0 if show else 0.0)
+	var value := 1.0 if show else 0.0
+	gate_material.set_shader_parameter("show_symbols", value)
+	for row in rows:
+		for mi: MeshInstance3D in row.meshes:
+			if mi and mi.material_override:
+				(mi.material_override as ShaderMaterial).set_shader_parameter("show_symbols", value)
 
 
 ## Clears the track and starts a fresh layout from the given seed.
@@ -227,8 +232,9 @@ func pass_cell(row: Dictionary, lane: int) -> void:
 	var mi: MeshInstance3D = row.meshes[lane]
 	if mi == null:
 		return
+	var panel: ShaderMaterial = mi.material_override
 	var tween := mi.create_tween()
-	tween.tween_method(func(v: float) -> void: mi.set_instance_shader_parameter("burst", v), 0.001, 1.0, 0.45)
+	tween.tween_method(func(v: float) -> void: panel.set_shader_parameter("burst", v), 0.001, 1.0, 0.45)
 	tween.tween_callback(mi.hide)
 
 
@@ -243,10 +249,13 @@ func retire_row(row: Dictionary) -> void:
 	for lane in Defs.LANES:
 		var mi: MeshInstance3D = row.meshes[lane]
 		var cell: int = row.cells[lane]
-		if mi == null or cell < 0 or cell > 2 or float(mi.get_instance_shader_parameter("burst")) > 0.0:
+		if mi == null or cell < 0 or cell > 2:
+			continue
+		var panel: ShaderMaterial = mi.material_override
+		if float(panel.get_shader_parameter("burst")) > 0.0:
 			continue
 		var fade := mi.create_tween()
-		fade.tween_method(func(v: float) -> void: mi.set_instance_shader_parameter("fade", v), 1.0, 0.0, 0.18)
+		fade.tween_method(func(v: float) -> void: panel.set_shader_parameter("fade", v), 1.0, 0.0, 0.18)
 		fade.tween_callback(mi.hide)
 
 
@@ -478,8 +487,13 @@ func _make_cell(parent: Node3D, cell: int, x: float) -> MeshInstance3D:
 		mi.mesh = _gate_mesh
 		mi.position = Vector3(x, GATE_BOTTOM + GATE_SIZE.y * 0.5, 0.0)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mi.set_instance_shader_parameter("color", Defs.COLORS[cell])
-		mi.set_instance_shader_parameter("symbol", float(Defs.SYMBOLS[cell]))
+		# One material per panel, not instance uniforms: WebGL only has room for a few dozen
+		# instances that use them, and the rest silently fail to draw.
+		var panel: ShaderMaterial = gate_material.duplicate()
+		panel.set_shader_parameter("color", Defs.COLORS[cell])
+		panel.set_shader_parameter("symbol", float(Defs.SYMBOLS[cell]))
+		panel.set_shader_parameter("burst", 0.0)
+		mi.material_override = panel
 	return mi
 
 
@@ -595,12 +609,12 @@ func place_power(kind: Powers.Kind, from: float, to: float, near_lane: int) -> b
 	item.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	item.position = Vector3(0.0, 1.25, 0.0)
 	item.scale = Vector3.ONE * 1.3
-	item.set_instance_shader_parameter("color", color)
 	node.add_child(item)
 	if kind == Powers.Kind.PRISM:
 		# The Prism Charge cycles through the rainbow, like Overdrive.
 		var hue := item.create_tween().set_loops()
-		hue.tween_method(func(h: float) -> void: item.set_instance_shader_parameter("color", Color.from_hsv(h, 0.55, 1.0)), 0.0, 1.0, 1.6)
+		var material: ShaderMaterial = look.material
+		hue.tween_method(func(h: float) -> void: material.set_shader_parameter("color", Color.from_hsv(h, 0.55, 1.0)), 0.0, 1.0, 1.6)
 	var entry := {"s": slot.s, "lane": slot.lane, "kind": kind, "node": node, "done": false}
 	powers.insert(powers.bsearch_custom(entry, func(a: Dictionary, b: Dictionary) -> bool: return a.s < b.s), entry)
 	return true
@@ -662,7 +676,9 @@ func _halo(parent: Node3D, mesh: Mesh, color: Color) -> MeshInstance3D:
 	var halo := MeshInstance3D.new()
 	halo.mesh = mesh
 	halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	halo.set_instance_shader_parameter("shade", Color(color.r, color.g, color.b, 0.85))
+	if not _halo_materials.has(color):
+		_halo_materials[color] = Look.blob(true, Color(color.r, color.g, color.b, 0.85))
+	halo.material_override = _halo_materials[color]
 	parent.add_child(halo)
 	return halo
 
@@ -681,7 +697,6 @@ func _spawn_orbs(from: float, to: float, lane: int) -> void:
 		# Aligned with the road, so the gem's shadow lies flat on it.
 		var frame := frame_at(s)
 		mi.transform = Transform3D(frame.basis, frame * Vector3(Defs.lane_x(lane), ORB_HEIGHT, 0.0))
-		mi.set_instance_shader_parameter("color", Defs.COLORS[color])
 		orbs.append({"s": s, "lane": lane, "color": color, "node": mi, "done": false})
 		s += 3.5
 
@@ -705,11 +720,21 @@ func _free_behind(limit: float) -> void:
 			orb.node.queue_free()
 
 
-## Each power kind's gem (spinning, tinted per instance) and a tall light beam in its colour,
+## A spinning gem material in one colour, shared by every orb or power gem of that colour.
+func _orb_material(color: Color) -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = OrbShader
+	material.set_shader_parameter("color", color)
+	return material
+
+
+## Each power kind's gem (spinning, in its own colour) and a tall light beam in its colour,
 ## so it can be spotted from far away.
 func _build_power_looks() -> void:
 	for kind: Powers.Kind in Powers.INFO:
+		var material := _orb_material(Powers.info(kind).color)
 		_power_looks[kind] = {
-			"mesh": Powers.mesh(kind, _orb_material),
+			"mesh": Powers.mesh(kind, material),
+			"material": material,
 			"beam": Look.beam_mesh(0.7, 4.0, Look.beam(Powers.info(kind).color, 0.32)),
 		}

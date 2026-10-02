@@ -18,7 +18,7 @@ func _is_modal() -> bool:
 
 
 func build() -> void:
-	var touch := OS.has_feature("mobile")
+	var touch := Defs.touch_device()
 	_pages = [
 		{"title": "MATCH THE GATE", "icons": ["circle", "triangle", "square"], "colors": Defs.COLORS,
 			"body": "Every gate has a colour and a shape. Switch to the same colour before you reach it, or you crash.",

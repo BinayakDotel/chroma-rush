@@ -1,9 +1,9 @@
 shader_type spatial;
 
-// Collectible gem: a glossy, softly glowing sweet that spins and bobs. The colour comes from
-// the instance. A light rim and its own glow separate it from any background, so it needs no
+// Collectible gem: a glossy, softly glowing sweet that spins and bobs, with one material per
+// colour. A light rim and its own glow separate it from any background, so it needs no
 // outline.
-instance uniform vec4 color : source_color = vec4(1.0);
+uniform vec4 color : source_color = vec4(1.0);
 
 void vertex() {
 	float a = TIME * 2.2 + NODE_POSITION_WORLD.x + NODE_POSITION_WORLD.z * 0.35;

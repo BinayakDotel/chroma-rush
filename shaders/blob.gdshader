@@ -3,8 +3,7 @@ render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, shadows_disabl
 
 // Soft round patch drawn flat on the road: a contact shadow under the vehicle and pickups
 // (`ring` = 0), or a glowing ring of colour (`ring` = 1).
-// Its own instance slot, so it can share a mesh instance with the gem shader's `color`.
-instance uniform vec4 shade : source_color, instance_index(4) = vec4(0.0, 0.0, 0.0, 0.38);
+uniform vec4 shade : source_color = vec4(0.0, 0.0, 0.0, 0.38);
 uniform float ring = 0.0;
 
 void fragment() {

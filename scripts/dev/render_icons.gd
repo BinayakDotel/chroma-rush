@@ -82,8 +82,7 @@ func _render_mascot() -> Image:
 	for pivot: Node3D in vehicle.get_meta("steer"):
 		pivot.rotation.y = -0.25
 	var shadow := MeshInstance3D.new()
-	shadow.mesh = Look.patch(3.0, Vehicles.ROAD + 0.01, Look.blob())
-	shadow.set_instance_shader_parameter("shade", Color(0.08, 0.04, 0.25, 0.5))
+	shadow.mesh = Look.patch(3.0, Vehicles.ROAD + 0.01, Look.blob(false, Color(0.08, 0.04, 0.25, 0.5)))
 	viewport.add_child(shadow)
 
 	var camera := Camera3D.new()

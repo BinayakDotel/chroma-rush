@@ -56,6 +56,8 @@ var world_index := 0
 var run_stats := {}
 ## Set only by the developer harness: obstacles are smashed instead of ending the run.
 var dev_god := false
+## Dev harness: don't pause when the window loses focus.
+var dev_keep_running := false
 
 var _themes := Themes.all()
 var _state_time := 0.0
@@ -139,7 +141,7 @@ func _notification(what: int) -> void:
 	match what:
 		NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED:
 			# Phones: pause on a call, notification shade or app switch; save a finished run.
-			if state == State.PLAYING:
+			if state == State.PLAYING and not dev_keep_running:
 				_pause()
 			_record_run()
 		NOTIFICATION_WM_CLOSE_REQUEST:
@@ -352,7 +354,10 @@ func _apply_theme() -> void:
 func _apply_quality() -> void:
 	var q := Settings.quality
 	var env := world.environment
-	sun.shadow_enabled = q >= Settings.Quality.MEDIUM
+	# On the Compatibility renderer (web builds) a sun that casts shadows lights the scene far
+	# too brightly and washes the road out to white, so it never casts them there.
+	var compatibility := RenderingServer.get_current_rendering_method() == "gl_compatibility"
+	sun.shadow_enabled = q >= Settings.Quality.MEDIUM and not compatibility
 	if q == Settings.Quality.HIGH:
 		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 		sun.directional_shadow_max_distance = 90.0
@@ -363,7 +368,7 @@ func _apply_quality() -> void:
 	env.glow_enabled = q >= Settings.Quality.MEDIUM
 	var viewport := get_viewport()
 	viewport.msaa_3d = Viewport.MSAA_DISABLED if q == Settings.Quality.LOW else Viewport.MSAA_2X
-	var mobile := OS.has_feature("mobile")
+	var mobile := Defs.touch_device()
 	viewport.scaling_3d_scale = [0.7, 0.85 if mobile else 1.0, 1.0][q]
 	player.set_trail_enabled(q >= Settings.Quality.MEDIUM)
 
@@ -495,7 +500,7 @@ func _tutorial_hints() -> void:
 	var row := track.next_row(distance)
 	if row.is_empty() or row.s - distance > HINT_DISTANCE:
 		return
-	var touch := OS.has_feature("mobile")
+	var touch := Defs.touch_device()
 	var kind := ""
 	var text := ""
 	if row.cells.any(func(c: int) -> bool: return c >= 0 and c <= 2):

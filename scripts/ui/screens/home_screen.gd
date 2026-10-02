@@ -78,7 +78,8 @@ func build() -> void:
 	_upgrade_dot.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	_upgrade_dot.position += Vector2(-16, -6)
 	upgrades.add_child(_upgrade_dot)
-	_dock_button("SHOP", "pink", "bag", ui.open_shop)
+	if Store.is_supported():
+		_dock_button("SHOP", "pink", "bag", ui.open_shop)
 
 	_panel = UiKit.card(24)
 	_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
