@@ -1,8 +1,9 @@
 extends UiScreen
 ## Settings: audio, feedback and accessibility, graphics quality, purchases, about and reset.
 
-const PRIVACY_URL := "https://whitehatengineering.com/chroma-rush/privacy"
-const SUPPORT_URL := "mailto:support@whitehatengineering.com"
+## Set these before a store release. A link with no address is left out of the screen.
+const PRIVACY_URL := ""
+const SUPPORT_URL := ""
 
 var _quality_buttons: Array[Button] = []
 
@@ -54,17 +55,18 @@ func build() -> void:
 	how.pressed.connect(func() -> void: ui.open_howto(false))
 	list.add_child(how)
 	var links := UiKit.hbox(10)
-	# Web portals show their own privacy policy beside the game.
-	if not OS.has_feature("web"):
-		var privacy := UiKit.button("PRIVACY", "light", Vector2(0, 60), 22, "link")
-		privacy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		privacy.pressed.connect(func() -> void: OS.shell_open(PRIVACY_URL))
-		links.add_child(privacy)
-	var support := UiKit.button("SUPPORT", "light", Vector2(0, 60), 22, "link")
-	support.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	support.pressed.connect(func() -> void: OS.shell_open(SUPPORT_URL))
-	links.add_child(support)
-	list.add_child(links)
+	for link: Array in [["PRIVACY", PRIVACY_URL], ["SUPPORT", SUPPORT_URL]]:
+		var url: String = link[1]
+		if url.is_empty():
+			continue
+		var button := UiKit.button(link[0], "light", Vector2(0, 60), 22, "link")
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.pressed.connect(func() -> void: OS.shell_open(url))
+		links.add_child(button)
+	if links.get_child_count() > 0:
+		list.add_child(links)
+	else:
+		links.free()
 	var credits := UiKit.wrapped(UiKit.text(
 		"Chroma Rush %s  -  Made with Godot Engine. Fonts: Lilita One and Nunito (SIL Open Font License)." %
 		ProjectSettings.get_setting("application/config/version", "1.0.0"), 18, true, 600))
