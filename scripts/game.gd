@@ -232,9 +232,8 @@ func _enter_menu() -> void:
 func _on_play_requested() -> void:
 	if state != State.MENU or not Profile.is_unlocked(_themes[world_index].id):
 		return
-	if not Profile.tutorial_done:
-		ui.open_howto(true)
-		return
+	# New players land straight in a run: the first run's tips teach as they drive, and How to
+	# Play stays in Settings.
 	_start()
 
 
@@ -247,6 +246,7 @@ func _start() -> void:
 	_tank_bonus = Profile.upgrade_value("tank")
 	_gem_luck = Profile.upgrade_value("luck")
 	_first_run = Profile.lifetime_runs == 0
+	Profile.mark_tutorial_done()
 	state = State.PLAYING
 	_state_time = 0.0
 	_recorded = false
@@ -498,8 +498,18 @@ func _update_sky(delta: float) -> void:
 	sun.global_transform.basis = Basis.looking_at(-sun_world)
 
 
-## First run only: one tip the first time each kind of obstacle comes up.
+## First run only: one tip the first time each kind of obstacle comes up, and one for the
+## first fuel pickup, since an empty tank ends the run.
 func _tutorial_hints() -> void:
+	if not _hints_shown.has("fuel"):
+		for pickup in track.fuels:
+			if pickup.done:
+				continue
+			if pickup.s - distance <= HINT_DISTANCE:
+				_hints_shown["fuel"] = true
+				hud.hint("GRAB FUEL TO KEEP GOING!", _themes[world_index].fuel_color, 1.6)
+				return
+			break
 	var row := track.next_row(distance)
 	if row.is_empty() or row.s - distance > HINT_DISTANCE:
 		return
