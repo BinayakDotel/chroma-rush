@@ -112,6 +112,8 @@ pointing/emulate_touch_from_mouse=true
 [physics]
 
 3d/physics_engine="Jolt Physics"
+3d/physics_engine.web="Dummy"
+2d/physics_engine.web="Dummy"
 
 [rendering]
 
