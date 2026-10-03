@@ -176,6 +176,7 @@ There are two browser builds:
 tools/build_web_template.sh      # once: compile the slim web engine (wasm 39.5 MB -> 18.6 MB; 15-30 min)
 tools/build_web.sh               # plain web build      -> build/web,        build/upload/chroma-rush-web.zip
 tools/build_web.sh crazygames    # with the CrazyGames SDK -> build/crazygames, build/upload/chroma-rush-crazygames.zip
+tools/serve_web.sh [crazygames]  # play a build at http://localhost:8080 (opening index.html from disk fails)
 ```
 
 Both run on the Compatibility renderer, where the sun casts no shadows (vehicles and pickups keep their soft patches on the road), and neither has a store or ads, so the shop is left out. The CrazyGames preset adds their SDK to the page; `scripts/services/portal.gd` then reports when loading ends and when the player is driving, and mutes the game when the portal asks. In the plain build there is no SDK and `Portal` does nothing.
