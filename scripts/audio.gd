@@ -4,10 +4,11 @@ extends Node
 ## (sources in audio/LICENSES.md). Effects play on the "SFX" bus and music on the "Music" bus,
 ## so the Settings volumes apply to each separately.
 
-## Music level under the effects (the files are levelled to -16 LUFS effects, -20 LUFS music),
-## and how far it drops while paused or behind a menu.
-const MUSIC_DB := -4.0
-const DUCKED_DB := -14.0
+## Music level (the files are levelled to -16 LUFS effects, -18 LUFS music; the Music volume
+## setting, 70% by default, takes it a little lower), and how far it drops while paused or
+## behind a menu.
+const MUSIC_DB := 0.0
+const DUCKED_DB := -10.0
 const SOUNDS: Dictionary[StringName, AudioStream] = {
 	&"switch": preload("res://audio/switch.wav"),
 	&"gate": preload("res://audio/gate.wav"),

@@ -21,7 +21,7 @@ SRC = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else os.path.join(ROOT, 
 OUT = os.path.join(ROOT, "audio")
 SR = 44100
 SFX_LUFS = -16.0
-MUSIC_LUFS = -20.0
+MUSIC_LUFS = -18.0
 PEAK_CAP = -1.0
 ## The music is 60 bars at 145 BPM; cutting it to exactly that keeps the loop on the beat.
 MUSIC_BARS = 60

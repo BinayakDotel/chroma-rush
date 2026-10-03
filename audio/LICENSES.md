@@ -5,7 +5,7 @@ dedication, https://creativecommons.org/publicdomain/zero/1.0/). No attribution 
 the authors are credited here anyway.
 
 `tools/build_audio.py` downloads the sources and makes these files: trims, fades and loudness
-(effects about -16 LUFS with peaks at or below -1 dBFS, music -20 LUFS, cut to 60 whole bars
+(effects about -16 LUFS with peaks at or below -1 dBFS, music -18 LUFS, cut to 60 whole bars
 so it loops on the beat).
 
 | File | Use | Source (exact file) | Author | License |

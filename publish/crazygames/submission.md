@@ -17,6 +17,7 @@ Resubmitting is allowed after "meaningful improvements". Before the next attempt
 - Make the first minute faster and fuller.
 - Bring back shadows and depth in the web build. A sun that casts shadows washes the scene out on the Compatibility renderer (about 3-4x too bright on desktop GL); a fix needs testing in WebGL in real browsers.
 - Done: recorded CC0 sounds and music replace the synthesised ones, and the HUD has a mute button. Not yet listened to on a phone.
+- Done: the web builds had no sound at all (the audio buses were made at startup, which Godot's web audio leaves silent), so the build CrazyGames reviewed was almost certainly silent. Fixed by declaring the buses in default_bus_layout.tres.
 - Test on a low-end laptop (they expect smooth play on a 4 GB Chromebook) and on a real phone.
 
 ## What to upload
