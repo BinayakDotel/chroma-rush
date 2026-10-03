@@ -13,10 +13,10 @@ Developer portal: https://developer.crazygames.com. Requirements: https://docs.c
 Resubmitting is allowed after "meaningful improvements". Before the next attempt:
 
 - Ask Developer Support (in the portal) what fell short.
-- Start the first run at once instead of opening the six-page how-to; their guidelines ask that new players land directly in play.
+- Done: the first run starts at once instead of opening the six-page how-to; the first run's tips teach as they come up.
 - Make the first minute faster and fuller.
-- Bring back shadows and depth in the web build.
-- Replace the synthesised sounds and music.
+- Bring back shadows and depth in the web build. A sun that casts shadows washes the scene out on the Compatibility renderer (about 3-4x too bright on desktop GL); a fix needs testing in WebGL in real browsers.
+- Done: recorded CC0 sounds and music replace the synthesised ones, and the HUD has a mute button. Not yet listened to on a phone.
 - Test on a low-end laptop (they expect smooth play on a 4 GB Chromebook) and on a real phone.
 
 ## What to upload

@@ -13,3 +13,6 @@
 
 # macOS
 .DS_Store
+
+# Downloaded audio sources for tools/build_audio.py
+/.audio_cache/

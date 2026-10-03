@@ -117,18 +117,19 @@ scripts/
   obstacles.gd            Blocks, hurdles, gate arches and gems
   scenery.gd, props.gd    Roadside ground, props and distant landmarks
   themes.gd, defs.gd      World definitions, colours and tuning
-  audio.gd                Synthesised sound effects and music
+  audio.gd                Sound effects and the music loop (recorded CC0 files from audio/)
   services/               Settings, Profile (save), Missions, Store (IAP), Ads, Economy, Portal (web portal SDK)
   ui/                     UI toolkit, icons, the logo, screens and navigation
   dev/                    Developer harness, flow test, path check, icon and cover renderers (not shipped)
 shaders/                  Soft surface, glass, road, gate panel, gem, road patch, shield bubble, hazard, sky
 fonts/                    Lilita One and Nunito, with their licences
+audio/                    Recorded CC0 sound effects and music, with their sources (made by tools/build_audio.py)
 icons/                    App icon source and rendered store / launcher icons
 docs/game-design.md       Design goals, tuning numbers, balance measurements, look and performance
 docs/screenshots/         Images used in this README
 docs/references/          Style reference images used during development
 publish/                  Store listing text, cover art, preview videos, notes per marketplace
-tools/                    Scripts that build the web version and record the preview videos
+tools/                    Scripts that build the web version, the audio and the preview videos
 build/                    Exports and upload archives (not in git)
 ```
 
