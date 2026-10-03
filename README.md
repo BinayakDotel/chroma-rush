@@ -120,13 +120,16 @@ scripts/
   audio.gd                Synthesised sound effects and music
   services/               Settings, Profile (save), Missions, Store (IAP), Ads, Economy
   ui/                     UI toolkit, icons, the logo, screens and navigation
-  dev/                    Developer harness, flow test, path check, icon renderer (not shipped)
+  dev/                    Developer harness, flow test, path check, icon and cover renderers (not shipped)
 shaders/                  Soft surface, glass, road, gate panel, gem, road patch, shield bubble, hazard, sky
 fonts/                    Lilita One and Nunito, with their licences
 icons/                    App icon source and rendered store / launcher icons
 docs/game-design.md       Design goals, tuning numbers, balance measurements, look and performance
 docs/screenshots/         Images used in this README
-images/                   Style reference images (not shipped)
+docs/references/          Style reference images used during development
+publish/                  Store listing text, cover art, preview videos, notes per marketplace
+tools/                    Scripts that build the web version and record the preview videos
+build/                    Exports and upload archives (not in git)
 ```
 
 ## Running
@@ -164,9 +167,17 @@ Screenshots need a window, so they briefly open the game on screen. See the top 
 
 ## Building for release
 
-Export presets for macOS, Android (AAB), iOS and Web are in `export_presets.cfg`; the harness, tests and reference images are excluded from every build.
+Export presets for macOS, Android (AAB), iOS and Web are in `export_presets.cfg`; the harness and tests are excluded from every build. Every export goes to its own folder under `build/`.
 
-The Web preset builds the browser version for game portals (`godot --headless --path . --export-release Web build/web/index.html`, then zip the files in `build/web`). It runs on the Compatibility renderer, where the sun casts no shadows (vehicles and pickups keep their soft patches on the road), and it has no store or ads, so the shop is left out.
+The Web preset builds the browser version for game portals:
+
+```sh
+tools/build_web.sh    # exports to build/web and zips it to build/upload/chroma-rush-web.zip
+```
+
+It runs on the Compatibility renderer, where the sun casts no shadows (vehicles and pickups keep their soft patches on the road), and it has no store or ads, so the shop is left out.
+
+The listing text, cover art, preview videos and the notes for each marketplace are in `publish/`; [publish/README.md](publish/README.md) says what is where and how each piece is made.
 
 Before a store release:
 
@@ -188,4 +199,4 @@ godot --headless --path . --import
 
 - Made with [Godot Engine](https://godotengine.org) (MIT licence).
 - Fonts: [Lilita One](https://fonts.google.com/specimen/Lilita+One) and [Nunito](https://fonts.google.com/specimen/Nunito), under the SIL Open Font License (see `fonts/`).
-- The files in `images/` are third-party style references used during development; they are not part of the game and are not included in any build.
+- The files in `docs/references/` are third-party style references used during development; they are not part of the game and are not included in any build.
