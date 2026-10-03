@@ -129,7 +129,7 @@ docs/game-design.md       Design goals, tuning numbers, balance measurements, lo
 docs/screenshots/         Images used in this README
 docs/references/          Style reference images used during development
 publish/                  Store listing text, cover art, preview videos, notes per marketplace
-tools/                    Scripts that build the web version, the audio and the preview videos
+tools/                    Scripts that build the slim web engine, the web version, the audio and the preview videos
 build/                    Exports and upload archives (not in git)
 ```
 
@@ -173,6 +173,7 @@ Export presets for macOS, Android (AAB), iOS, Web and CrazyGames are in `export_
 There are two browser builds:
 
 ```sh
+tools/build_web_template.sh      # once: compile the slim web engine (wasm 39.5 MB -> 18.6 MB; 15-30 min)
 tools/build_web.sh               # plain web build      -> build/web,        build/upload/chroma-rush-web.zip
 tools/build_web.sh crazygames    # with the CrazyGames SDK -> build/crazygames, build/upload/chroma-rush-crazygames.zip
 ```

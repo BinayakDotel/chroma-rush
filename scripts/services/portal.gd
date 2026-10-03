@@ -17,7 +17,8 @@ var _playing := false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	if not OS.has_feature("web"):
+	# Asking for an interface the page doesn't have logs an engine error, so check first.
+	if not OS.has_feature("web") or not JavaScriptBridge.eval("typeof window.%s === 'object'" % BRIDGE, true):
 		return
 	_bridge = JavaScriptBridge.get_interface(BRIDGE)
 	if _bridge == null:

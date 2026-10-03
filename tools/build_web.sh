@@ -4,7 +4,8 @@
 #   tools/build_web.sh crazygames   CrazyGames build, with their SDK  -> build/crazygames
 # Each also writes build/upload/chroma-rush-<target>.zip: the same files, zipped, with
 # index.html at the top level.
-# Requires Godot 4.7 with the web export templates (set GODOT if it is not on PATH).
+# Requires Godot 4.7 (set GODOT if it is not on PATH) and the slim engine that
+# tools/build_web_template.sh compiles.
 set -euo pipefail
 
 GODOT="${GODOT:-godot}"
@@ -16,6 +17,12 @@ case "$TARGET" in
 	crazygames) PRESET="CrazyGames" ;;
 	*) echo "Unknown target '$TARGET' (expected: web, crazygames)" >&2; exit 1 ;;
 esac
+
+# The web presets use the slim engine from tools/build_web_template.sh, not the stock one.
+if [ ! -f "$ROOT/build/templates/web_nothreads_release.zip" ]; then
+	echo "Missing build/templates/web_nothreads_release.zip: run tools/build_web_template.sh first" >&2
+	exit 1
+fi
 
 OUT="$ROOT/build/$TARGET"
 ZIP="$ROOT/build/upload/chroma-rush-$TARGET.zip"
