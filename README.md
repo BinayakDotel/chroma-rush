@@ -118,7 +118,7 @@ scripts/
   scenery.gd, props.gd    Roadside ground, props and distant landmarks
   themes.gd, defs.gd      World definitions, colours and tuning
   audio.gd                Synthesised sound effects and music
-  services/               Settings, Profile (save), Missions, Store (IAP), Ads, Economy
+  services/               Settings, Profile (save), Missions, Store (IAP), Ads, Economy, Portal (web portal SDK)
   ui/                     UI toolkit, icons, the logo, screens and navigation
   dev/                    Developer harness, flow test, path check, icon and cover renderers (not shipped)
 shaders/                  Soft surface, glass, road, gate panel, gem, road patch, shield bubble, hazard, sky
@@ -167,15 +167,16 @@ Screenshots need a window, so they briefly open the game on screen. See the top 
 
 ## Building for release
 
-Export presets for macOS, Android (AAB), iOS and Web are in `export_presets.cfg`; the harness and tests are excluded from every build. Every export goes to its own folder under `build/`.
+Export presets for macOS, Android (AAB), iOS, Web and CrazyGames are in `export_presets.cfg`; the harness and tests are excluded from every build. Every export goes to its own folder under `build/`.
 
-The Web preset builds the browser version for game portals:
+There are two browser builds:
 
 ```sh
-tools/build_web.sh    # exports to build/web and zips it to build/upload/chroma-rush-web.zip
+tools/build_web.sh               # plain web build      -> build/web,        build/upload/chroma-rush-web.zip
+tools/build_web.sh crazygames    # with the CrazyGames SDK -> build/crazygames, build/upload/chroma-rush-crazygames.zip
 ```
 
-It runs on the Compatibility renderer, where the sun casts no shadows (vehicles and pickups keep their soft patches on the road), and it has no store or ads, so the shop is left out.
+Both run on the Compatibility renderer, where the sun casts no shadows (vehicles and pickups keep their soft patches on the road), and neither has a store or ads, so the shop is left out. The CrazyGames preset adds their SDK to the page; `scripts/services/portal.gd` then reports when loading ends and when the player is driving, and mutes the game when the portal asks. In the plain build there is no SDK and `Portal` does nothing.
 
 The listing text, cover art, preview videos and the notes for each marketplace are in `publish/`; [publish/README.md](publish/README.md) says what is where and how each piece is made.
 

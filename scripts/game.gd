@@ -36,7 +36,10 @@ enum State { MENU, PLAYING, PAUSED, DEAD }
 ## The in-run HUD screen (see scripts/ui/screens/hud_screen.gd).
 var hud
 
-var state := State.MENU
+var state := State.MENU:
+	set(value):
+		state = value
+		Portal.set_playing(state == State.PLAYING)
 var distance := START_S
 var speed := 0.0
 var score := 0.0
