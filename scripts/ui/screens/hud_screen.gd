@@ -33,6 +33,7 @@ var _shield_badge: PanelContainer
 var _magnet_badge: PanelContainer
 var _magnet_bar: ProgressBar
 var _speed: Label
+var _mute: Button
 var _hint: PanelContainer
 var _hint_label: Label
 var _hint_tween: Tween
@@ -116,10 +117,17 @@ func build() -> void:
 	var right := UiKit.vbox(2)
 	right.custom_minimum_size.x = 170
 	top.add_child(right)
+	# Sound on and off in one tap, next to pause: portals ask for a mute reachable in play.
+	var buttons := UiKit.hbox(10)
+	buttons.alignment = BoxContainer.ALIGNMENT_END
+	right.add_child(buttons)
+	_mute = UiKit.icon_button("muted" if Settings.muted else "sound", "ghost", 64)
+	_mute.pressed.connect(func() -> void: Settings.set_value(&"muted", not Settings.muted))
+	Settings.changed.connect(_on_setting_changed)
+	buttons.add_child(_mute)
 	var pause := UiKit.icon_button("pause", "ghost", 64)
-	pause.size_flags_horizontal = Control.SIZE_SHRINK_END
 	pause.pressed.connect(ui.pause_requested.emit)
-	right.add_child(pause)
+	buttons.add_child(pause)
 	_distance = UiKit.title("0 m", 36)
 	_distance.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	right.add_child(_distance)
@@ -230,6 +238,11 @@ func reset() -> void:
 	set_color(0)
 	set_speed_fx(0.0)
 	_hint.visible = false
+
+
+func _on_setting_changed(key: StringName) -> void:
+	if key == &"muted":
+		(_mute.get_meta("icon") as UiIcon).set_icon("muted" if Settings.muted else "sound")
 
 
 ## These are called every frame: text is only rebuilt when the number on screen changes.

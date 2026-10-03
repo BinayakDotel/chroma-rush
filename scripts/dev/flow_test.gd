@@ -24,6 +24,12 @@ func run(host: Node) -> void:
 	_check("PLAY on first launch starts the run at once", _state() == "PLAYING" and not ui.has_overlay())
 	_check("the first run counts as the tutorial", Profile.tutorial_done)
 	_check("HUD is shown in a run", ui.hud.visible)
+	var music_bus := AudioServer.get_bus_index(Settings.MUSIC_BUS)
+	var sfx_bus := AudioServer.get_bus_index(Settings.SFX_BUS)
+	ui.hud.get("_mute").pressed.emit()
+	_check("the HUD mute silences music and effects", Settings.muted and AudioServer.is_bus_mute(music_bus) and AudioServer.is_bus_mute(sfx_bus))
+	ui.hud.get("_mute").pressed.emit()
+	_check("a second tap brings the sound back", not Settings.muted and not AudioServer.is_bus_mute(music_bus))
 
 	await _power_gem_checks()
 

@@ -108,6 +108,11 @@ func _draw() -> void:
 				p.call(0.54, 0.86), p.call(0.3, 0.64), p.call(0.08, 0.64)]), color)
 			draw_arc(p.call(0.54, 0.5), s * 0.2, -0.9, 0.9, 10, color, w * 0.8, true)
 			draw_arc(p.call(0.54, 0.5), s * 0.36, -0.9, 0.9, 12, color, w * 0.8, true)
+		"muted":
+			draw_colored_polygon(PackedVector2Array([p.call(0.08, 0.36), p.call(0.3, 0.36), p.call(0.54, 0.14),
+				p.call(0.54, 0.86), p.call(0.3, 0.64), p.call(0.08, 0.64)]), color)
+			draw_line(p.call(0.66, 0.36), p.call(0.92, 0.64), color, w * 0.8)
+			draw_line(p.call(0.92, 0.36), p.call(0.66, 0.64), color, w * 0.8)
 		"vibrate":
 			draw_rect(Rect2(p.call(0.3, 0.1), Vector2(0.4, 0.8) * s), color, false, w * 0.9)
 			for side in [-1.0, 1.0]:

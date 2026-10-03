@@ -12,11 +12,13 @@ const SANDBOX_PATH := "user://dev/settings.cfg"
 const MUSIC_BUS := &"Music"
 const SFX_BUS := &"SFX"
 const KEYS: Array[StringName] = [
-	&"music_volume", &"sfx_volume", &"haptics", &"color_symbols", &"reduce_motion", &"show_fps", &"quality",
+	&"music_volume", &"sfx_volume", &"muted", &"haptics", &"color_symbols", &"reduce_motion", &"show_fps", &"quality",
 ]
 
 var music_volume := 0.7
 var sfx_volume := 1.0
+## Silences music and effects without losing their volumes: the HUD's one-tap mute.
+var muted := false
 var haptics := true
 ## Draws a shape on every gate, orb and colour button so colours never rely on hue alone.
 var color_symbols := true
@@ -59,9 +61,10 @@ func vibrate(strength := 0.5) -> void:
 		Input.vibrate_handheld(int(lerpf(12.0, 60.0, clampf(strength, 0.0, 1.0))))
 
 
+## Only the Music and SFX buses: the portal and ads mute Master on their own.
 func _apply_audio() -> void:
-	_set_bus_volume(MUSIC_BUS, music_volume)
-	_set_bus_volume(SFX_BUS, sfx_volume)
+	_set_bus_volume(MUSIC_BUS, 0.0 if muted else music_volume)
+	_set_bus_volume(SFX_BUS, 0.0 if muted else sfx_volume)
 
 
 func _set_bus_volume(bus: StringName, linear: float) -> void:
