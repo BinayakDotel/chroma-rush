@@ -15,8 +15,9 @@ The game builds are not here. They go to `build/` (not in git):
 
 ```
 build/
-  web/                  Web export (index.html and 8 more files)
-  upload/               Archives ready to upload: chroma-rush-web.zip
+  web/                  Plain web export (index.html and 8 more files)
+  crazygames/           Web export with the CrazyGames SDK
+  upload/               Archives ready to upload: chroma-rush-web.zip, chroma-rush-crazygames.zip
   android/, ios/, macos/   Native exports, at the paths set in export_presets.cfg
 ```
 
@@ -26,7 +27,8 @@ Set `GODOT` to the Godot 4.7 binary if it is not on your PATH. The cover and pre
 
 | Piece | Command |
 | --- | --- |
-| Web build and upload zip | `tools/build_web.sh` |
+| Plain web build and upload zip | `tools/build_web.sh` |
+| CrazyGames build and upload zip | `tools/build_web.sh crazygames` |
 | Covers | `godot --path . -s res://scripts/dev/render_covers.gd` |
 | Preview videos | `tools/record_previews.sh` (about ten minutes, needs ffmpeg) |
 | App icon, splash, logo kart | `godot --path . -s res://scripts/dev/render_icons.gd`, then `godot --headless --path . --import` |

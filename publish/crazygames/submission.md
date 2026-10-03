@@ -8,6 +8,7 @@ Developer portal: https://developer.crazygames.com. Requirements: https://docs.c
 | --- | --- |
 | 2026-10-02 | Submitted for Basic Launch (web build 1.0.0). |
 | 2026-10-02 | Rejected: "The overall quality of the game does not yet meet the expectations of our platform". No further detail given. |
+| 2026-10-02 | Their preview warned "SDK not currently detected. Total file size is used for initial load size requirements" (40.5 MB, under the 50 MB limit). SDK added to the CrazyGames build: loading and gameplay events, mute. |
 
 Resubmitting is allowed after "meaningful improvements". Before the next attempt:
 
@@ -22,7 +23,7 @@ Resubmitting is allowed after "meaningful improvements". Before the next attempt
 
 | Form field | File |
 | --- | --- |
-| Game files | every file in `build/web/` (or `build/upload/chroma-rush-web.zip` unzipped): all 9, including the two `*.worklet.js` files the sound needs |
+| Game files | every file in `build/crazygames/` (or `build/upload/chroma-rush-crazygames.zip` unzipped): all 9, including the two `*.worklet.js` files the sound needs. Make it with `tools/build_web.sh crazygames`; the plain `build/web` has no SDK. |
 | Cover, landscape 16:9 | `publish/covers/cover_landscape_1920x1080.png` |
 | Cover, portrait 2:3 | `publish/covers/cover_portrait_800x1200.png` |
 | Cover, square 1:1 | `publish/covers/cover_square_800x800.png` |
@@ -43,7 +44,7 @@ The cover upload shows a crop box with the top-left corner marked: CrazyGames la
 | The game supports mobile devices | Yes |
 | Mobile orientation | Both |
 | Online multiplayer | No |
-| Supports CrazyGames muting audio through SDK | No |
+| Supports CrazyGames muting audio through SDK | Yes |
 
 ## Limits
 
@@ -58,6 +59,6 @@ The cover upload shows a crop box with the top-left corner marked: CrazyGames la
 
 Basic Launch has no ads and no revenue. Full Launch, by invitation after Basic, needs:
 
-- The CrazyGames SDK: gameplay start and stop events, and ads served through it. `scripts/services/ads_backends.gd` is the interface an ad backend plugs into.
+- Ads served through their SDK. The SDK itself is in the build (`scripts/services/portal.gd` sends the loading and gameplay events); `scripts/services/ads_backends.gd` is the interface an ad backend plugs into.
 - Progress saved through their Data module or their Automatic Progress Save.
 - New players landing directly in gameplay.

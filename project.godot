@@ -26,6 +26,7 @@ Settings="*res://scripts/services/settings.gd"
 Profile="*res://scripts/services/profile.gd"
 Store="*res://scripts/services/store.gd"
 Ads="*res://scripts/services/ads.gd"
+Portal="*res://scripts/services/portal.gd"
 
 [display]
 
