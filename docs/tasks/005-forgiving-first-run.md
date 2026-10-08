@@ -1,6 +1,6 @@
 # 005: Make the first minute hard to lose
 
-status: todo
+status: in progress
 base: main
 depends: [004]
 pr:
