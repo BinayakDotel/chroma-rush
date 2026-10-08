@@ -8,7 +8,7 @@ Only `/refine`, `/implement`, `/address`, and `/done` change status.
 | 001 | done | Just recipe for making game builds | — | https://github.com/BinayakDotel/chroma-rush/pull/42 |
 | 002 | done | First-run skip home — straight onto the road | — | https://github.com/BinayakDotel/chroma-rush/pull/43 |
 | 003 | done | Calm the screen shake | — | https://github.com/BinayakDotel/chroma-rush/pull/44 |
-| 005 | in progress | Make the first minute hard to lose | — | |
+| 005 | in review | Make the first minute hard to lose | — | https://github.com/BinayakDotel/chroma-rush/pull/45 |
 | 006 | todo | Release 1.0.1 to CrazyGames | 003, 004, 005 | |
 | 007 | todo | Daily reward streak | — | |
 | 008 | todo | Unlock the second world in the first session | — | |

@@ -82,6 +82,8 @@ var _last_row_s := -1.0
 ## Ways through the last row spawned (see Pacing.row_options), to space the next one fairly.
 var _last_options: Array[Dictionary] = []
 var _next_fuel_s := FIRST_FUEL
+## Calm stretch for this run. The game sets it before reset(), which builds the opening rows.
+var calm_distance := Pacing.WARM_UP
 
 var _kerb_material: ShaderMaterial
 var _kerb_color := Color.WHITE
@@ -414,13 +416,13 @@ func _quad(st: SurfaceTool, a: int, b: int, c: int, d: int) -> void:
 ## gets orbs and, when one is due, a fuel pickup that is fair to collect.
 func _spawn_row() -> void:
 	var prev_s := _last_row_s
-	var cells := _pick_pattern(FIRST_ROW if prev_s < 0.0 else prev_s + Pacing.row_gap(prev_s, 0))
+	var cells := _pick_pattern(FIRST_ROW if prev_s < 0.0 else prev_s + Pacing.row_gap(prev_s, 0, 0.0, calm_distance))
 	var options := Pacing.row_options(cells)
 	var s := FIRST_ROW
 	var fuel_s := -1.0
 	var fuel_lane := -1
 	if prev_s >= 0.0:
-		var gap := Pacing.row_gap(prev_s, Pacing.actions_between(_last_options, options))
+		var gap := Pacing.row_gap(prev_s, Pacing.actions_between(_last_options, options), 0.0, calm_distance)
 		if prev_s + gap * 0.6 >= _next_fuel_s:
 			# Fuel is due in this stretch. It goes in a lane that is open in the new row, and
 			# the row moves back if needed: time to see the pickup and change lanes for it,
@@ -429,7 +431,7 @@ func _spawn_row() -> void:
 			var via := Pacing.actions_via(_last_options, options, fuel_lane)
 			var lead := Pacing.fuel_lead(prev_s, int(via.lane_changes))
 			var after := Pacing.action_time(prev_s) * (int(via.actions) - int(via.lane_changes)) + Pacing.FUEL_SETTLE
-			gap = Pacing.row_gap(prev_s, int(via.actions), lead + after)
+			gap = Pacing.row_gap(prev_s, int(via.actions), lead + after, calm_distance)
 			var speed := Pacing.speed_at(prev_s)
 			fuel_s = prev_s + clampf(gap * 0.6, lead * speed, maxf(gap - after * speed, lead * speed))
 		s = prev_s + gap
@@ -456,7 +458,7 @@ func _spawn_row() -> void:
 ## Orbs for the stretch between two rows, and its fuel pickup if it has one.
 func _fill_gap(from: float, to: float, fuel_s: float, fuel_lane: int) -> void:
 	# Breathers are generous with orbs: a calm stretch should still feel rewarding.
-	if _rng.randf() < (0.9 if Pacing.is_calm(from) else 0.6):
+	if _rng.randf() < (0.9 if Pacing.is_calm(from, calm_distance) else 0.6):
 		var lane := _rng.randi_range(0, 2)
 		while lane == fuel_lane:
 			lane = _rng.randi_range(0, 2)
@@ -502,7 +504,7 @@ func _pick_pattern(s: float) -> Array:
 	var other := (c + _rng.randi_range(1, 2)) % 3
 	var weights := []
 	for row in Pacing.ROWS:
-		weights.append(Pacing.row_weight(row, s))
+		weights.append(Pacing.row_weight(row, s, calm_distance))
 	var cells: Array
 	match _weighted(weights) as Pacing.Row:
 		Pacing.Row.WALL:

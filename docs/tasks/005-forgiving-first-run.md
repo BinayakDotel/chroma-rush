@@ -1,9 +1,9 @@
 # 005: Make the first minute hard to lose
 
-status: in progress
+status: in review
 base: main
 depends: []
-pr:
+pr: https://github.com/BinayakDotel/chroma-rush/pull/45
 
 ## Goal
 
@@ -41,4 +41,6 @@ What players should get:
 
 ## Outcome
 
-<!-- /implement fills this -->
+The first run (`lifetime_runs == 0` at start) begins with one shield and the shield hint, stays calm to 1,100 m (wide spacing, with the 500 m and 1,000 m breathers still wider), and burns fuel at ×0.4 until that distance. Later runs, including a retry after results, use the 250 m warm-up and normal drain. A revive does not grant another shield.
+
+Risk: opening rows are built in `reset()` from `calm_distance` set in `_new_run()`. Anything that resets the track without setting that distance first still gets the 250 m warm-up.
