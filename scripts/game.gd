@@ -90,6 +90,12 @@ var _end_title := ""
 var _crash_row := {}
 var _hints_shown := {}
 var _first_run := false
+## New profile: menu road is up, home is not, until one key, click, or tap calls `_start`.
+var _awaiting_start := false
+var _start_open := false
+## The gesture that started the run, held until release so its touch copy cannot steer or switch colour.
+var _swallow_pointer := false
+var _swallow_saw_touch := false
 var _probe: FrameProbe
 ## Camera's own lateral position, trailing the vehicle's so lane changes glide on screen.
 var _cam_lateral := 0.0
@@ -124,7 +130,10 @@ func _ready() -> void:
 	world_index = Themes.index_of(Profile.selected_world)
 	_apply_quality()
 	_apply_theme()
-	_enter_menu()
+	if Profile.lifetime_runs == 0:
+		_enter_first_wait()
+	else:
+		_enter_menu()
 
 
 func _process(delta: float) -> void:
@@ -152,8 +161,19 @@ func _notification(what: int) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _swallow_pointer and _is_pointer(event):
+		_note_pointer(event)
+		return
+	if _awaiting_start and state == State.MENU:
+		if _start_open and _is_start_gesture(event):
+			if _is_pointer(event):
+				_swallow_pointer = true
+				_swallow_saw_touch = false
+				_note_pointer(event)
+			_start()
+		return
 	if state != State.PLAYING:
-		if event.is_action_pressed("theme_next") and state == State.MENU:
+		if event.is_action_pressed("theme_next") and state == State.MENU and not _awaiting_start:
 			_browse(1)
 		return
 	if event is InputEventScreenTouch or event is InputEventScreenDrag:
@@ -221,12 +241,63 @@ func _enter_menu() -> void:
 	_new_run()
 	state = State.MENU
 	_state_time = 0.0
+	_awaiting_start = false
+	_start_open = false
+	ui.hide_start_prompt()
 	get_tree().paused = false
 	audio.duck(false)
 	ui.show_home(_themes[world_index], world_index, _themes.size())
 	var frame := track.frame_at(distance)
 	cam.global_transform = Transform3D(Basis.IDENTITY, frame * Vector3(0.0, 2.2, 6.0)).looking_at(frame.origin, frame.basis.y)
 	_menu_angle = 0.0
+
+
+## Same road and orbit as the menu, with no home screen, until the splash is gone and a gesture starts the run.
+func _enter_first_wait() -> void:
+	_new_run()
+	state = State.MENU
+	_state_time = 0.0
+	_awaiting_start = true
+	_start_open = false
+	get_tree().paused = false
+	audio.duck(false)
+	var frame := track.frame_at(distance)
+	cam.global_transform = Transform3D(Basis.IDENTITY, frame * Vector3(0.0, 2.2, 6.0)).looking_at(frame.origin, frame.basis.y)
+	_menu_angle = 0.0
+	if ui.intro_done:
+		_open_start()
+	else:
+		ui.intro_finished.connect(_open_start, CONNECT_ONE_SHOT)
+
+
+func _open_start() -> void:
+	if not _awaiting_start or state != State.MENU:
+		return
+	_start_open = true
+	ui.show_start_prompt("Tap to start" if Defs.touch_device() else "Click or press any key to start")
+
+
+func _is_start_gesture(event: InputEvent) -> bool:
+	if event is InputEventKey:
+		return event.pressed and not event.echo
+	if event is InputEventMouseButton:
+		return event.pressed and event.button_index == MOUSE_BUTTON_LEFT
+	if event is InputEventScreenTouch:
+		return event.pressed
+	return false
+
+
+func _is_pointer(event: InputEvent) -> bool:
+	return event is InputEventMouseButton or event is InputEventScreenTouch or event is InputEventScreenDrag
+
+
+func _note_pointer(event: InputEvent) -> void:
+	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		_swallow_saw_touch = true
+		if event is InputEventScreenTouch and not event.pressed:
+			_swallow_pointer = false
+	elif event is InputEventMouseButton and not event.pressed and not _swallow_saw_touch:
+		_swallow_pointer = false
 
 
 func _on_play_requested() -> void:
@@ -246,6 +317,9 @@ func _start() -> void:
 	_tank_bonus = Profile.upgrade_value("tank")
 	_gem_luck = Profile.upgrade_value("luck")
 	_first_run = Profile.lifetime_runs == 0
+	_awaiting_start = false
+	_start_open = false
+	ui.hide_start_prompt()
 	Profile.mark_tutorial_done()
 	state = State.PLAYING
 	_state_time = 0.0

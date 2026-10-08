@@ -1,9 +1,9 @@
 # 002: First-run skip home — straight onto the road
 
-status: in progress
+status: in review
 base: main
 depends: []
-pr:
+pr: https://github.com/BinayakDotel/chroma-rush/pull/43
 
 ## Goal
 
@@ -36,4 +36,4 @@ Today a first-time player lands on the home screen and has to press Play. For a 
 
 ## Outcome
 
-<!-- /implement fills this -->
+A profile with no recorded runs stays on the menu road through the splash. When the splash tween ends (or there is no splash), a centred prompt appears and the next key, left click, or tap calls `_start()` once. That pointer is ignored until release so it cannot steer or change colour. Home, including Home from pause, still shows the home screen. Risk: a key during the splash is dropped only while the prompt is hidden; a click in that window is still eaten by the splash cover.
