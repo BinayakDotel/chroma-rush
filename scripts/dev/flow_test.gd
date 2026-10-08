@@ -27,6 +27,7 @@ func run(host: Node) -> void:
 	game._unhandled_input(key)
 	await _frames(3)
 	_check("one key starts the first run", _state() == "PLAYING" and not ui.has_overlay())
+	_check("a fresh profile starts shielded", bool(game.get("shield")) and bool(game.get("player").shield))
 	_check("the first run counts as the tutorial", Profile.tutorial_done)
 	_check("HUD is shown in a run", ui.hud.visible)
 	var music_bus := AudioServer.get_bus_index(Settings.MUSIC_BUS)
@@ -73,6 +74,7 @@ func run(host: Node) -> void:
 	ui.restart_requested.emit()
 	await _frames(5)
 	_check("retry starts a fresh run", _state() == "PLAYING" and float(game.get("score")) < 50.0)
+	_check("the run after results has no free shield", not bool(game.get("shield")))
 	_check("retry did not double-record the run", Profile.lifetime_runs == runs_before + 1)
 
 	Profile.revive_tokens = 0

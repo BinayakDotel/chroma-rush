@@ -15,6 +15,8 @@ const DIFFICULTY_SCALE := 2800.0
 
 ## Relaxed spacing for the first metres of a run while the player settles in.
 const WARM_UP := 250.0
+## First run only: calm through the 1,000 m breather, about a minute at warm-up pace.
+const FIRST_RUN_CALM := 1100.0
 const WARM_UP_SPACING := 1.35
 
 ## Waves: every WAVE metres (the "500 m!" milestones) a breather starts. For BREATHER metres
@@ -108,8 +110,8 @@ static func endgame(s: float) -> float:
 
 
 ## True during the calm stretch after each milestone (and the warm-up).
-static func is_calm(s: float) -> bool:
-	return s < WARM_UP or fmod(s, WAVE) < BREATHER
+static func is_calm(s: float, warm_up := WARM_UP) -> bool:
+	return s < warm_up or fmod(s, WAVE) < BREATHER
 
 
 ## Which wave a distance is in; the breather at its start has the guaranteed fuel.
@@ -118,8 +120,11 @@ static func wave_index(s: float) -> int:
 
 
 ## Spacing multiplier from the wave: wide in breathers, tightening through each build.
-static func wave_spacing(s: float) -> float:
-	if s < WARM_UP:
+static func wave_spacing(s: float, warm_up := WARM_UP) -> float:
+	if s < warm_up:
+		# Milestone breathers stay wide; the opening 0–100 m does not count as one.
+		if s >= WAVE and fmod(s, WAVE) < BREATHER:
+			return BREATHER_SPACING
 		return WARM_UP_SPACING
 	var phase := fmod(s, WAVE)
 	if phase < BREATHER:
@@ -138,9 +143,9 @@ static func action_time(s: float) -> float:
 
 ## Metres from the previous row (at `s`) to the next one, which needs `actions` actions, and
 ## never less than `min_seconds` of driving.
-static func row_gap(s: float, actions: int, min_seconds := 0.0) -> float:
+static func row_gap(s: float, actions: int, min_seconds := 0.0, warm_up := WARM_UP) -> float:
 	var row_time := lerpf(ROW_TIME.x, lerpf(ROW_TIME.y, ENDGAME_ROW_TIME, endgame(s)), difficulty(s))
-	var seconds := row_time * wave_spacing(s)
+	var seconds := row_time * wave_spacing(s, warm_up)
 	seconds = maxf(seconds, react_time(s) + action_time(s) * actions)
 	return minf(maxf(seconds, min_seconds) * speed_at(s), MAX_GAP)
 
@@ -162,9 +167,9 @@ static func fuel_lead(s: float, lane_changes: int) -> float:
 
 
 ## Pattern weight at a distance: 0 before it is introduced, and only calm rows in a breather.
-static func row_weight(row: Row, s: float) -> float:
+static func row_weight(row: Row, s: float, warm_up := WARM_UP) -> float:
 	var spec: Dictionary = ROWS[row]
-	if s < float(spec.from) or (is_calm(s) and not spec.calm):
+	if s < float(spec.from) or (is_calm(s, warm_up) and not spec.calm):
 		return 0.0
 	var w: Vector2 = spec.weight
 	return lerpf(w.x, w.y, difficulty(s))

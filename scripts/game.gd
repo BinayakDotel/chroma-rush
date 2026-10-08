@@ -204,6 +204,7 @@ func _unhandled_input(event: InputEvent) -> void:
 # --- flow ------------------------------------------------------------------
 
 func _new_run() -> void:
+	track.calm_distance = Pacing.FIRST_RUN_CALM if Profile.lifetime_runs == 0 else Pacing.WARM_UP
 	track.reset(randi())
 	distance = START_S
 	speed = Pacing.speed_at(distance)
@@ -317,6 +318,9 @@ func _start() -> void:
 	_tank_bonus = Profile.upgrade_value("tank")
 	_gem_luck = Profile.upgrade_value("luck")
 	_first_run = Profile.lifetime_runs == 0
+	if _first_run:
+		shield = true
+		player.shield = true
 	_awaiting_start = false
 	_start_open = false
 	ui.hide_start_prompt()
@@ -326,7 +330,10 @@ func _start() -> void:
 	_recorded = false
 	get_tree().paused = false
 	ui.show_hud()
-	hud.hint("GO!")
+	if _first_run:
+		hud.hint("SHIELD: ONE FREE CRASH!", Powers.info(Powers.Kind.SHIELD).color, 1.6)
+	else:
+		hud.hint("GO!")
 	audio.play("start")
 
 
@@ -694,11 +701,19 @@ func _check_orbs() -> void:
 			audio.play("orb", 0.9, -8.0)
 
 
+## Seconds one full tank lasts here. The first run burns at ×0.4 until the long warm-up ends.
+func _tank_seconds() -> float:
+	var seconds := Pacing.tank_time(distance) * _tank_bonus
+	if _first_run and distance < Pacing.FIRST_RUN_CALM:
+		seconds /= 0.4
+	return seconds
+
+
 ## Prism Overdrive runs free; otherwise fuel burns with time (see Pacing.tank_time).
 func _burn_fuel(seconds: float) -> void:
 	if prism_left > 0.0 or _coast >= 0.0:
 		return
-	fuel = maxf(fuel - seconds / (Pacing.tank_time(distance) * _tank_bonus), 0.0)
+	fuel = maxf(fuel - seconds / _tank_seconds(), 0.0)
 	if fuel < LOW_FUEL and not _low_fuel_warned:
 		_low_fuel_warned = true
 		hud.hint("LOW FUEL!", Color(1.0, 0.55, 0.45))
@@ -750,7 +765,7 @@ func _maybe_drop_fuel(delta: float) -> void:
 	# How far the vehicle can still get: the fuel left, then half the coasting time (it slows
 	# to a stop while coasting). The drop has to land well inside that.
 	var full_speed := Pacing.speed_at(distance)
-	var range_left := full_speed * (fuel * Pacing.tank_time(distance) * _tank_bonus + (COAST_TIME - maxf(_coast, 0.0)) * 0.5)
+	var range_left := full_speed * (fuel * _tank_seconds() + (COAST_TIME - maxf(_coast, 0.0)) * 0.5)
 	for pickup in track.fuels:
 		if not pickup.done and pickup.s > distance + 1.0 and pickup.s < distance + range_left * 0.9:
 			return
