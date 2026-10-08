@@ -1,6 +1,6 @@
 # 003: Calm the screen shake
 
-status: todo
+status: in progress
 base: main
 depends: []
 pr:
