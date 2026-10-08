@@ -1,6 +1,6 @@
 # 003: Calm the screen shake
 
-status: in review
+status: done
 base: main
 depends: []
 pr: https://github.com/BinayakDotel/chroma-rush/pull/44
