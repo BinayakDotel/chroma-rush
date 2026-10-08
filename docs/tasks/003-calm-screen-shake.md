@@ -1,9 +1,9 @@
 # 003: Calm the screen shake
 
-status: in progress
+status: in review
 base: main
 depends: []
-pr:
+pr: https://github.com/BinayakDotel/chroma-rush/pull/44
 
 ## Goal
 
@@ -43,4 +43,6 @@ What players should get:
 
 ## Outcome
 
-<!-- /implement fills this -->
+Screen shake is one smooth bump (0.15 m crash, 0.10 m shield, 0.08 m Overdrive start) that eases out in a third of a second of real time, including slow-motion. Smash and power-gem shakes are gone. Reduce motion still clears a bump and keeps it off.
+
+Risk: the bump always kicks upward (angle in [0, π]), so a crash never drops the picture the other way.

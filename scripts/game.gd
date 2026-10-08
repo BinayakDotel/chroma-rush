@@ -632,7 +632,6 @@ func _resolve_row(row: Dictionary) -> void:
 		score += 50 * _multiplier()
 		audio.play("smash", randf_range(0.9, 1.2))
 		player.sparkle(Color.WHITE, true)
-		cam.shake(0.35)
 		return
 	if grace_left > 0.0:
 		track.smash_cell(row, lane)
@@ -802,7 +801,6 @@ func _apply_power(kind: Powers.Kind) -> void:
 	hud.hint(text, info.color, 1.6)
 	player.sparkle(info.color, true)
 	audio.play("unlock", 1.2)
-	cam.shake(0.2)
 	Settings.vibrate(0.4)
 
 
@@ -863,7 +861,7 @@ func _activate_prism() -> void:
 	player.rainbow = true
 	audio.play("prism")
 	hud.hint("PRISM OVERDRIVE!", UiKit.GOLD)
-	cam.shake(0.4)
+	cam.shake(0.08)
 	Settings.vibrate(0.5)
 
 
@@ -896,7 +894,7 @@ func _crash(row: Dictionary) -> void:
 		grace_left = GRACE_DURATION
 		hud.hint("SHIELD SAVED YOU!", Powers.info(Powers.Kind.SHIELD).color)
 		audio.play("smash")
-		cam.shake(0.6)
+		cam.shake(0.10)
 		Settings.vibrate(0.7)
 		return
 	_crash_row = row
@@ -916,7 +914,7 @@ func _end_run(title: String, explode: bool) -> void:
 	if explode:
 		player.explode()
 		audio.play("crash")
-		cam.shake(1.0)
+		cam.shake(0.15)
 		Settings.vibrate(1.0)
 		Engine.time_scale = 0.3
 		await get_tree().create_timer(0.5, true, false, true).timeout
