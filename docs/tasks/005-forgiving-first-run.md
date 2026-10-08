@@ -1,6 +1,6 @@
 # 005: Make the first minute hard to lose
 
-status: in review
+status: done
 base: main
 depends: []
 pr: https://github.com/BinayakDotel/chroma-rush/pull/45
