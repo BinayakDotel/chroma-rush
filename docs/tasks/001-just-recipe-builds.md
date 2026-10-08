@@ -1,6 +1,6 @@
 # 001: Just Recipe for making game build
 
-status: todo
+status: in progress
 base: main
 depends: []
 pr:
