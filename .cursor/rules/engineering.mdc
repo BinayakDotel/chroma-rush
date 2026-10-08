@@ -1,0 +1,53 @@
+---
+description: How agent work runs in this repo. Always on.
+alwaysApply: true
+---
+# Engineering
+
+## Lifecycle (one ticket per chat, one skill per chat)
+- Tickets: `docs/tasks/<ID>-<slug>.md`; index: `docs/tasks/README.md`.
+  Status: todo → in progress → in review → done. Only lifecycle skills change status.
+- `/refine`: sync, pick ticket, grill (max 8), write Decisions + Files + Verify. No code.
+- `/implement`: build from ticket only, code-review, Outcome, `gt create` + `gt submit`.
+- `/address`: fix PR comments on the same branch, `gt modify` + `gt submit`.
+- `/done`: after human merges, sync, mark done, name next ticket.
+- Ticket work without a skill: name the skill that fits and stop.
+- Bugs: new chat + `/diagnosing-bugs` (`.agents/skills`).
+
+## Git
+- Allowed: `gt sync -f`, `gt checkout`, `gt create -am "<type(scope): subject>"`, `gt submit`, `gt modify -a`, read-only `gh`.
+- Exception: `/refine` and `/done` may commit only `docs/tasks/**` on main:
+  `git commit -m "chore(tasks): …"` and `git push origin main`.
+- Forbidden: other commits on main, `git reset`, `git rebase`, `git push --force`, `gt merge`.
+  Human merges feature PRs on GitHub.
+- Never edit files listed in another `in progress` or `in review` ticket.
+- Never bundle a refactor with a feature. Never add a dependency without one sentence of why.
+
+## Quality gates
+- No agent-run headless Godot (token-heavy). Put a ≤5-bullet `## Verify` checklist for the human.
+- If a quiet `just test-q` (PASS/FAIL only) exists later, prefer it; until then skip automated Godot in skills.
+- Before `gt create`: run `code-review` (`.agents/skills`) with fixed point = ticket `base`, spec = ticket file. Fix real findings.
+- Call `tdd` only when Decisions name a seam **and** a quiet test recipe exists.
+- Logical file budget: paired `.gd` + `.tscn` counts as **one**. More than ~5 → split into stacked tickets before building.
+- Unsure between two designs: two lines each, ask. Never build both.
+
+## Token discipline
+- Context between chats = the ticket file only (Goal, Decisions, Files, Verify). No temp handoffs for routine tickets.
+- Start from the ticket and its Files. Codebase search for gaps; open extra files one at a time.
+- Never bulk-read the repo, `.godot/`, `build/`, `audio/` binaries, or large `.tscn` dumps.
+- Insufficient context → **stop and ask**. Never invent UX, paths, or game feel.
+- Shortest complete answer. No restating the task, no pasted diffs (the PR is the diff).
+- If the chat drifts beyond the ticket, say so and stop.
+- Two failed attempts: stop, note under Outcome, ask.
+
+## Models
+| Work | Model | Effort |
+|---|---|---|
+| `/refine` | Auto | Medium |
+| `/implement`, `/address`, `/done` | Auto | Low |
+| Hard bug (new chat + diagnosing-bugs) | Auto | Medium |
+| Avoid for routine tickets | High effort | |
+
+<!-- When Claude quota returns, optional: /refine → Claude Sonnet, Medium. -->
+
+End every lifecycle skill reply with: `Next: /<skill> on <model>, effort <level>.`
