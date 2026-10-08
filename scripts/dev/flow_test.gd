@@ -16,12 +16,17 @@ func run(host: Node) -> void:
 	ui = game.get("ui")
 	await _frames(5)
 
-	_check("starts on the home screen", _state() == "MENU" and ui.home.visible)
+	_check("fresh profile waits on the road", _state() == "MENU" and not ui.home.visible
+		and ui.start_prompt != null and ui.start_prompt.visible)
+	_check("the prompt asks to start", ui.start_prompt.text == ("Tap to start" if Defs.touch_device() else "Click or press any key to start"))
 	_check("first-time player has not seen the tutorial", not Profile.tutorial_done)
 
-	ui.play_requested.emit()
+	var key := InputEventKey.new()
+	key.pressed = true
+	key.keycode = KEY_SPACE
+	game._unhandled_input(key)
 	await _frames(3)
-	_check("PLAY on first launch starts the run at once", _state() == "PLAYING" and not ui.has_overlay())
+	_check("one key starts the first run", _state() == "PLAYING" and not ui.has_overlay())
 	_check("the first run counts as the tutorial", Profile.tutorial_done)
 	_check("HUD is shown in a run", ui.hud.visible)
 	var music_bus := AudioServer.get_bus_index(Settings.MUSIC_BUS)
@@ -86,7 +91,7 @@ func run(host: Node) -> void:
 	await _frames(2)
 	ui.home_requested.emit()
 	await _frames(5)
-	_check("home from pause returns to the home screen", _state() == "MENU" and ui.home.visible)
+	_check("starts on the home screen after a finished run", _state() == "MENU" and ui.home.visible and Profile.lifetime_runs >= 1)
 	_check("home unpauses the tree", not harness.get_tree().paused)
 
 	ui.world_browsed.emit(1)

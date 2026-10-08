@@ -22,6 +22,8 @@ signal revive_requested
 signal revive_token_requested
 signal double_shards_requested
 signal quit_requested
+## Fired when the splash tween ends, or at once when there is no splash to play.
+signal intro_finished
 
 const HomeScreen = preload("res://scripts/ui/screens/home_screen.gd")
 const HudScreen = preload("res://scripts/ui/screens/hud_screen.gd")
@@ -50,6 +52,8 @@ var _toast: PanelContainer
 var _toast_label: Label
 var _toast_tween: Tween
 var _fps: Label
+var intro_done := false
+var start_prompt: Label
 
 
 func _ready() -> void:
@@ -74,6 +78,8 @@ func _ready() -> void:
 	_relayout()
 	if not DevMode.active() or "--intro" in OS.get_cmdline_user_args():
 		_play_intro()
+	else:
+		_finish_intro()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -96,6 +102,7 @@ func _process(_delta: float) -> void:
 ## screen the same way), then it swells a little and fades to show the home screen.
 func _play_intro() -> void:
 	if not ResourceLoader.exists(SPLASH_PATH):
+		_finish_intro()
 		return
 	var cover := ColorRect.new()
 	cover.color = SPLASH_COLOR
@@ -115,7 +122,32 @@ func _play_intro() -> void:
 	lift.tween_interval(0.35)
 	lift.tween_property(logo, "scale", Vector2.ONE * 1.08, 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	lift.parallel().tween_property(cover, "modulate:a", 0.0, 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-	lift.tween_callback(cover.queue_free)
+	lift.tween_callback(func() -> void:
+		cover.queue_free()
+		_finish_intro())
+
+
+func _finish_intro() -> void:
+	if intro_done:
+		return
+	intro_done = true
+	intro_finished.emit()
+
+
+## One centred line over the road. The game shows it when a new profile may start.
+func show_start_prompt(message: String) -> void:
+	if start_prompt == null:
+		start_prompt = UiKit.centered(UiKit.text("", 36))
+		UiKit.full_rect(start_prompt)
+		start_prompt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(start_prompt)
+	start_prompt.text = message
+	start_prompt.visible = true
+
+
+func hide_start_prompt() -> void:
+	if start_prompt:
+		start_prompt.visible = false
 
 
 func show_home(world: Dictionary, index: int, count: int) -> void:
