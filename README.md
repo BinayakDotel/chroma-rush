@@ -168,6 +168,19 @@ Screenshots need a window, so they briefly open the game on screen. See the top 
 
 ## Building for release
 
+Install [just](https://just.systems), then build from the repo root:
+
+```sh
+just build web                  # plain web build      -> build/web,        build/upload/chroma-rush-web.zip
+just build crazygames           # with the CrazyGames SDK -> build/crazygames, build/upload/chroma-rush-crazygames.zip
+just build android              # build/android/ChromaRush.aab
+just build ios                  # build/ios/ChromaRush.ipa
+just build macos                # build/macos/Chroma Rush.zip
+just build listing-description  # rewrites publish/listing.md from publish/listing.template.md
+```
+
+`just build` with no name, or any other name, prints those six names and exits with an error. `web` and `crazygames` call `tools/build_web.sh`. Android, iOS and macOS export the preset of that name. A missing export template or signing setup fails with Godot's own error.
+
 Export presets for macOS, Android (AAB), iOS, Web and CrazyGames are in `export_presets.cfg`; the harness and tests are excluded from every build. Every export goes to its own folder under `build/`.
 
 There are two browser builds:

@@ -1,9 +1,9 @@
 # 001: Just Recipe for making game build
 
-status: in progress
+status: in review
 base: main
 depends: []
-pr:
+pr: https://github.com/BinayakDotel/chroma-rush/pull/42
 
 ## Goal
 
@@ -44,4 +44,6 @@ Similarly, "just build ios", "just build android",
 
 ## Outcome
 
-<!-- /implement fills this -->
+`just build <target>` covers web, crazygames, android, ios, macos, and listing-description. Web targets still call `tools/build_web.sh`. Native targets export the existing release presets into `build/`. The listing recipe fills `{{controls}}` from the input map and `HowToScreen.TOUCH_CONTROLS`, and `{{orientation}}` with the portrait sentence. Pause is P.
+
+Risk: `publish/listing.md` still has the old Esc and landscape lines until someone runs `just build listing-description` (that step starts Godot). Android, iOS, and macOS were not exported here.
