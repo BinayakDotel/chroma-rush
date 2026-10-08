@@ -1,6 +1,6 @@
 # 001: Just Recipe for making game build
 
-status: in review
+status: done
 base: main
 depends: []
 pr: https://github.com/BinayakDotel/chroma-rush/pull/42
