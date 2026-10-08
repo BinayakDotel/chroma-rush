@@ -1,4 +1,4 @@
-# 001: First-run skip home — straight onto the road
+# 002: First-run skip home — straight onto the road
 
 status: todo
 base: main
