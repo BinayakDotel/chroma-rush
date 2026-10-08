@@ -2,6 +2,14 @@ extends UiScreen
 ## How to play, as six swipe-through cards. Shown automatically before a first-time player's
 ## first run (then its last button starts the run), and from the home and settings screens.
 
+## Touch lines shared with scripts/dev/write_listing.gd. Fuel and gem cards repeat the lane swipe, so they are not here.
+const TOUCH_CONTROLS := {
+	"lane": "Swipe left or right",
+	"jump": "Swipe up to jump, down to slam",
+	"colour": "Tap a colour button",
+	"prism": "Tap PRISM",
+}
+
 var _pages: Array[Dictionary] = []
 var _page := 0
 var _then_play := false
@@ -22,13 +30,13 @@ func build() -> void:
 	_pages = [
 		{"title": "MATCH THE GATE", "icons": ["circle", "triangle", "square"], "colors": Defs.COLORS,
 			"body": "Every gate has a colour and a shape. Switch to the same colour before you reach it, or you crash.",
-			"controls": "Tap a colour button" if touch else "J K L or 1 2 3 picks a colour, SPACE cycles"},
+			"controls": TOUCH_CONTROLS.colour if touch else "J K L or 1 2 3 picks a colour, SPACE cycles"},
 		{"title": "DODGE BLOCKS", "icons": ["back", "next"],
 			"body": "Rocks, ice and meteors can't be passed. Change lanes to get around them.",
-			"controls": "Swipe left or right" if touch else "A / D or the arrow keys"},
+			"controls": TOUCH_CONTROLS.lane if touch else "A / D or the arrow keys"},
 		{"title": "JUMP HURDLES", "icons": ["up"],
 			"body": "Logs, lava and lasers sit low. Jump over them, and slam down to land sooner.",
-			"controls": "Swipe up to jump, down to slam" if touch else "W to jump, S to slam"},
+			"controls": TOUCH_CONTROLS.jump if touch else "W to jump, S to slam"},
 		{"title": "KEEP YOUR TANK FULL", "icons": ["fuel"],
 			"body": "Fuel drains as you drive. Grab the glowing fuel pickups: each one is in a lane you can take. Nearly empty? Watch for a fuel drop.",
 			"controls": "Steer into the pickup's lane"},
@@ -39,7 +47,7 @@ func build() -> void:
 			"controls": "Steer into the gem's lane"},
 		{"title": "PRISM OVERDRIVE", "icons": ["bolt"],
 			"body": "Pass gates and grab orbs to fill the Prism meter. Then smash through everything: orbs from every lane fly to you for double shards!",
-			"controls": "Tap PRISM" if touch else "SHIFT or E"},
+			"controls": TOUCH_CONTROLS.prism if touch else "SHIFT or E"},
 	]
 	dim(0.6)
 	var content := centered_card(560, 28)
