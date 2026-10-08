@@ -1,6 +1,6 @@
 # 002: First-run skip home — straight onto the road
 
-status: todo
+status: in progress
 base: main
 depends: []
 pr:
