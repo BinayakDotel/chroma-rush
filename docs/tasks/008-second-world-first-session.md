@@ -1,6 +1,6 @@
 # 008: Unlock the second world in the first session
 
-status: todo
+status: in progress
 base: main
 depends: []
 pr:
@@ -22,7 +22,10 @@ What players should get:
 
 ## Files
 
-<!-- /refine lists paths; /implement reads only these + this ticket -->
+- `scripts/services/economy.gd` — Glacier entry in `WORLD_COST`
+- `scripts/services/profile.gd` — `next_goal()`, if the results line should track Glacier before cheaper upgrades
+- `docs/game-design.md` — worlds line (500 / 1,500 / 3,500 / 6,000)
+- `README.md` — Glacier row in the worlds table
 
 ## Verify
 
