@@ -11,6 +11,6 @@ Only `/refine`, `/implement`, `/address`, and `/done` change status.
 | 005 | done | Make the first minute hard to lose | — | https://github.com/BinayakDotel/chroma-rush/pull/45 |
 | 006 | todo | Release 1.0.1 to CrazyGames | 002, 003, 005 | |
 | 007 | todo | Daily reward streak | — | |
-| 008 | in review | Unlock the second world in the first session | — | https://github.com/BinayakDotel/chroma-rush/pull/46 |
+| 008 | done | Unlock the second world in the first session | — | https://github.com/BinayakDotel/chroma-rush/pull/46 |
 | 009 | todo | A cover that gets clicked | — | |
 | 010 | todo | Release 1.0.2 to CrazyGames | 008 | |

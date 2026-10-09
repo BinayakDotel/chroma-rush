@@ -1,6 +1,6 @@
 # 008: Unlock the second world in the first session
 
-status: in review
+status: done
 base: main
 depends: []
 pr: https://github.com/BinayakDotel/chroma-rush/pull/46
