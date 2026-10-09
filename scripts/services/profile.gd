@@ -137,10 +137,15 @@ func add_shards(amount: int) -> void:
 	shards_changed.emit(shards)
 
 
-## The next thing worth saving for: the cheapest upgrade level or world not bought yet.
-## Returns {name, cost, upgrade (true for an upgrade, false for a world)}, or {} when
-## everything is owned.
+## The next thing worth saving for. While Glacier is locked it is the goal, even if an upgrade
+## is cheaper. After that, the cheapest upgrade level or locked world.
+## Returns {name, cost, upgrade (true for an upgrade, false for a world), id (worlds only)},
+## or {} when everything is owned.
 func next_goal() -> Dictionary:
+	if not is_unlocked("glacier"):
+		for world: Dictionary in Themes.all():
+			if world.id == "glacier":
+				return {"id": "glacier", "name": str(world.name), "cost": Economy.world_cost("glacier"), "upgrade": false}
 	var goal := {}
 	for id: String in Economy.UPGRADES:
 		var cost := Economy.upgrade_cost(id, upgrade_level(id))
@@ -149,7 +154,7 @@ func next_goal() -> Dictionary:
 	for world: Dictionary in Themes.all():
 		var cost := Economy.world_cost(world.id)
 		if not is_unlocked(world.id) and (goal.is_empty() or cost < int(goal.cost)):
-			goal = {"name": str(world.name), "cost": cost, "upgrade": false}
+			goal = {"id": world.id, "name": str(world.name), "cost": cost, "upgrade": false}
 	return goal
 
 

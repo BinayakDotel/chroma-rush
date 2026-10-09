@@ -121,7 +121,7 @@ Gates (+12%), hurdles (+6%) and orbs (+5% matching, +2% otherwise) fill the mete
 
 - **Shards per run**: 1 per orb collected (2 in Overdrive) + 1 per 50 m. A 5-minute run earns roughly 250 to 350.
 - **Missions**: three at a time, 60 to 200 shards each (see below).
-- **Worlds**: 500 / 1,500 / 3,500 / 6,000 shards.
+- **Worlds**: 250 / 1,500 / 3,500 / 6,000 shards.
 - **Upgrades**: 150 / 400 / 800 / 1,500 / 2,500 shards per level (5,350 per upgrade, 21,400 for all four).
 
 | Upgrade | Level 0 | Level 5 |

@@ -11,6 +11,8 @@ extends CanvasLayer
 signal play_requested
 signal world_browsed(step: int)
 signal unlock_requested
+## Results screen: the player can afford the world named by `next_goal`.
+signal goal_unlock_requested(world_id: String)
 signal pause_requested
 signal resume_requested
 signal restart_requested
