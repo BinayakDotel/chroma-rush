@@ -1,9 +1,9 @@
 # 008: Unlock the second world in the first session
 
-status: in progress
+status: in review
 base: main
 depends: []
-pr:
+pr: https://github.com/BinayakDotel/chroma-rush/pull/46
 
 ## Goal
 
@@ -43,4 +43,4 @@ What players should get:
 
 ## Outcome
 
-<!-- /implement fills this -->
+Glacier now costs 250 shards and stays the results goal until it is owned, with a one-tap UNLOCK GLACIER button (including after a double that crosses 250) that records the run, buys it, and starts Glacier. Landscape keeps that goal beside the score. Risk: a wide results card at 1280×720 may still clip on shorter browser chrome; the human check is the Verify list.

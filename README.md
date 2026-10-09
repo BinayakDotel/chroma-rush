@@ -90,7 +90,7 @@ Three goals at a time, such as "pass 30 gates in one run" or "collect 140 orbs".
 | World | Driver and vehicle | Hurdle | Unlock |
 | --- | --- | --- | --- |
 | Meadow | Fox in a go-kart | Mossy log | Free |
-| Glacier | Penguin on a bobsled | Snowdrift with ice spikes | 500 shards |
+| Glacier | Penguin on a bobsled | Snowdrift with ice spikes | 250 shards |
 | Canyon | Gecko in a dune buggy | Ranch fence | 1,500 shards |
 | Volcano | Rock golem in a monster truck | Lava fissure | 3,500 shards |
 | Solar System | Alien astronaut in a star racer | Laser fence | 6,000 shards |

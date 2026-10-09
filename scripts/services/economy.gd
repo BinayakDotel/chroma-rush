@@ -12,7 +12,7 @@ const METRES_PER_SHARD := 50.0
 ## Shards needed to unlock each world (0 = free).
 const WORLD_COST := {
 	"meadow": 0,
-	"glacier": 500,
+	"glacier": 250,
 	"canyon": 1500,
 	"volcano": 3500,
 	"space": 6000,

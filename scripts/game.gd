@@ -117,6 +117,7 @@ func _ready() -> void:
 	ui.play_requested.connect(_on_play_requested)
 	ui.world_browsed.connect(_browse)
 	ui.unlock_requested.connect(_unlock_world)
+	ui.goal_unlock_requested.connect(_unlock_goal)
 	ui.pause_requested.connect(_pause)
 	ui.resume_requested.connect(_resume)
 	ui.restart_requested.connect(_restart)
@@ -387,6 +388,18 @@ func _browse(step: int) -> void:
 	Profile.select_world(_themes[world_index].id)
 	_apply_theme()
 	_enter_menu()
+
+
+## Spends the run's shards on the results-screen world goal, then starts that world.
+func _unlock_goal(world_id: String) -> void:
+	_leave_results(func() -> void:
+		if not Profile.buy_world(world_id):
+			return
+		Profile.select_world(world_id)
+		world_index = Themes.index_of(world_id)
+		_apply_theme()
+		_new_run()
+		_start())
 
 
 func _unlock_world() -> void:
