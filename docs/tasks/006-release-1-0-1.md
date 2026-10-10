@@ -1,9 +1,9 @@
 # 006: Release 1.0.1 to CrazyGames
 
-status: in progress
+status: in review
 base: main
 depends: [002, 003, 005]
-pr:
+pr: https://github.com/BinayakDotel/chroma-rush/pull/47
 
 ## Goal
 
@@ -53,4 +53,4 @@ What this covers:
 
 ## Outcome
 
-<!-- /implement fills this -->
+`config/version` is 1.0.1 so the next export is labeled correctly; the live CrazyGames build is still 1.0.0. Status rows record Basic Launch through 10 Oct and the support email. Risk: the last row says the email went out on 10 Oct; if it goes out later, change that date before marking this done.

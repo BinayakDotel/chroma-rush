@@ -9,6 +9,15 @@ Developer portal: https://developer.crazygames.com. Requirements: https://docs.c
 | 2026-10-02 | Submitted for Basic Launch (web build 1.0.0). |
 | 2026-10-02 | Rejected: "The overall quality of the game does not yet meet the expectations of our platform". No further detail given. |
 | 2026-10-02 | Their preview warned "SDK not currently detected. Total file size is used for initial load size requirements" (40.5 MB, under the 50 MB limit). SDK added to the CrazyGames build: loading and gameplay events, mute. |
+| 2026-10-03 | Resubmitted for Basic Launch (web build 1.0.0). |
+| 2026-10-05 | Basic Launch started. Ends after 7 full days and 500 plays; expires 26 Oct. |
+| 2026-10-07 | First scores (5–7 Oct, 289 plays): desktop 4/15, mobile 3/15. Player bug report: "Screen shakes are absurd". |
+| 2026-10-08 | Update live: new players start on the road (002), calm screen shake (003), forgiving first run (005). The build still shows version 1.0.0 in settings. |
+| 2026-10-09 | Scores (5–8 Oct, 388 plays, almost all old build): desktop 4/15, mobile 4/15. Avg loading 1.3 s; thumbnail CTR 1.0% (bottom 20%). |
+| 2026-10-10 | Stats 5–9 Oct (496 plays; 9 Oct is the first full day of the new build): all devices playtime 3m04s, conversion 35.8%, D1 1.40%. No clear change yet. 500 plays reached; the test ends after 12 Oct. |
+| 2026-10-10 | Emailed Developer Support (topic "My game listing") asking to weigh the days after 8 Oct or grant another Basic Launch period. |
+
+(Written 2 Oct, before the resubmission.)
 
 Resubmitting is allowed after "meaningful improvements". Before the next attempt:
 
