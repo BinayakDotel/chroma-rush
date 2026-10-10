@@ -1,6 +1,6 @@
 # 006: Release 1.0.1 to CrazyGames
 
-status: in review
+status: done
 base: main
 depends: [002, 003, 005]
 pr: https://github.com/BinayakDotel/chroma-rush/pull/47
