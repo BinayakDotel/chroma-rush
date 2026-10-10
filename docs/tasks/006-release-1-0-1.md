@@ -1,6 +1,6 @@
 # 006: Release 1.0.1 to CrazyGames
 
-status: todo
+status: in progress
 base: main
 depends: [002, 003, 005]
 pr:
