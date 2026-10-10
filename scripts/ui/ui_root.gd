@@ -37,6 +37,7 @@ const UpgradesScreen = preload("res://scripts/ui/screens/upgrades_screen.gd")
 const MissionsScreen = preload("res://scripts/ui/screens/missions_screen.gd")
 const HowToScreen = preload("res://scripts/ui/screens/howto_screen.gd")
 const DialogScreen = preload("res://scripts/ui/screens/dialog_screen.gd")
+const DailyRewardScreen = preload("res://scripts/ui/screens/daily_reward_screen.gd")
 ## The boot splash (see project.godot) and the colour behind it, repeated here so the game can
 ## open by lifting that same picture away instead of cutting to the home screen.
 const SPLASH_PATH := "res://icons/splash.png"
@@ -56,6 +57,7 @@ var _toast_tween: Tween
 var _fps: Label
 var intro_done := false
 var start_prompt: Label
+var _daily_token := 0
 
 
 func _ready() -> void:
@@ -153,9 +155,11 @@ func hide_start_prompt() -> void:
 
 
 func show_home(world: Dictionary, index: int, count: int) -> void:
+	_daily_token += 1
 	_close_all_overlays()
 	_set_base(home)
 	home.call("show_world", world, index, count)
+	_offer_daily()
 
 
 func refresh_home(world: Dictionary, index: int, count: int) -> void:
@@ -163,14 +167,22 @@ func refresh_home(world: Dictionary, index: int, count: int) -> void:
 
 
 func show_hud() -> void:
+	_daily_token += 1
 	_close_all_overlays()
 	_set_base(hud)
 
 
 func show_results(summary: Dictionary) -> void:
+	_daily_token += 1
+	var token := _daily_token
 	_close_all_overlays()
 	_set_base(results)
 	results.call("show_summary", summary)
+	get_tree().create_timer(1.0, true).timeout.connect(func() -> void:
+		if token != _daily_token or _base != results:
+			return
+		if _offer_daily():
+			results.call("refresh_tomorrow"))
 
 
 func show_pause() -> void:
@@ -203,6 +215,13 @@ func open_howto(then_play := false) -> void:
 func confirm(title: String, message: String, confirm_text: String, on_confirm: Callable, danger := false) -> void:
 	var screen := open_overlay(DialogScreen)
 	screen.call("configure", title, message, confirm_text, on_confirm, danger)
+
+
+func _offer_daily() -> bool:
+	if not Profile.daily_due():
+		return false
+	open_overlay(DailyRewardScreen)
+	return true
 
 
 func open_overlay(script: Script) -> UiScreen:
