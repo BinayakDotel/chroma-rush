@@ -1,6 +1,6 @@
 # 009: A cover that gets clicked
 
-status: todo
+status: in progress
 base: main
 depends: []
 pr:
