@@ -1,6 +1,6 @@
 # 007: Daily reward streak
 
-status: todo
+status: in progress
 base: main
 depends: []
 pr:
