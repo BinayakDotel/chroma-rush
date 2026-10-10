@@ -16,6 +16,7 @@ const FREE_WORLD := "meadow"
 const SANDBOX_PATH := "user://dev/profile.cfg"
 ## Phoenix gems bank free revives, up to this many.
 const MAX_REVIVE_TOKENS := 3
+const _DAY_SHARDS := [50, 75, 100, 125, 150, 200]
 
 var shards := 0
 var selected_world := FREE_WORLD
@@ -36,6 +37,10 @@ var entitlements := {}
 var stats := {"distance": 0.0, "gates": 0, "orbs": 0, "best_combo": 0, "best_distance": 0}
 ## Bookkeeping for the interstitial frequency cap (see Ads).
 var ads_state := {"runs_since": 0, "last_unix": 0.0}
+## Daily gift: 0 until the first claim, else 1–7. `last_claim_date` is local YYYY-MM-DD.
+var streak_day := 0
+var last_claim_date := ""
+var last_claim_unix := 0
 var _path := PATH
 
 
@@ -222,6 +227,9 @@ func reset_progress() -> void:
 	unlocked.assign([FREE_WORLD])
 	stats = {"distance": 0.0, "gates": 0, "orbs": 0, "best_combo": 0, "best_distance": 0}
 	ads_state = {"runs_since": 0, "last_unix": 0.0}
+	streak_day = 0
+	last_claim_date = ""
+	last_claim_unix = 0
 	save()
 	Missions.refill()
 	shards_changed.emit(shards)
@@ -246,6 +254,9 @@ func save() -> void:
 	cfg.set_value("progress", "missions_done", missions_done)
 	cfg.set_value("store", "entitlements", entitlements)
 	cfg.set_value("ads", "state", ads_state)
+	cfg.set_value("daily", "streak_day", streak_day)
+	cfg.set_value("daily", "last_claim_date", last_claim_date)
+	cfg.set_value("daily", "last_claim_unix", last_claim_unix)
 	SaveIO.write(cfg, _path)
 
 
@@ -278,6 +289,9 @@ func _load() -> void:
 				missions.append(mission)
 	entitlements = _dict(cfg.get_value("store", "entitlements", {}))
 	ads_state.merge(_dict(cfg.get_value("ads", "state", {})), true)
+	streak_day = clampi(int(cfg.get_value("daily", "streak_day", 0)), 0, 7)
+	last_claim_date = str(cfg.get_value("daily", "last_claim_date", ""))
+	last_claim_unix = int(cfg.get_value("daily", "last_claim_unix", 0))
 	if not is_unlocked(selected_world):
 		selected_world = FREE_WORLD
 
@@ -291,6 +305,77 @@ func _migrate_legacy() -> void:
 	if legacy_best > 0:
 		bests[FREE_WORLD] = legacy_best
 	save()
+
+
+## True when today's local date is after the last claim and the clock has not been set back.
+func daily_due() -> bool:
+	if Time.get_unix_time_from_system() < float(last_claim_unix):
+		return false
+	return _today() > last_claim_date
+
+
+## Grants today's gift. {} when nothing is due. Keys: day, gift, tomorrow.
+func claim_daily() -> Dictionary:
+	if not daily_due():
+		return {}
+	var day := _due_day()
+	var gift := _gift_label(day, revive_tokens)
+	if day == 7:
+		if not add_revive_token():
+			add_shards(200)
+	else:
+		add_shards(_DAY_SHARDS[day - 1])
+	streak_day = day
+	last_claim_date = _today()
+	last_claim_unix = int(Time.get_unix_time_from_system())
+	save()
+	return {"day": "DAY %d" % day, "gift": gift, "tomorrow": _tomorrow_caption(day, revive_tokens)}
+
+
+## Tomorrow's gift line, or "" before the first claim when nothing is due.
+func tomorrow_line() -> String:
+	var day := streak_day
+	var gems := revive_tokens
+	if daily_due():
+		day = _due_day()
+		if day == 7 and gems < MAX_REVIVE_TOKENS:
+			gems += 1
+	if day <= 0:
+		return ""
+	return _tomorrow_caption(day, gems)
+
+
+func _due_day() -> int:
+	if last_claim_date.is_empty() or _calendar_gap(last_claim_date, _today()) != 1:
+		return 1
+	return (streak_day % 7) + 1
+
+
+func _gift_label(day: int, gems: int) -> String:
+	if day == 7:
+		return "PHOENIX GEM" if gems < MAX_REVIVE_TOKENS else "+200 SHARDS"
+	return "+%d SHARDS" % _DAY_SHARDS[day - 1]
+
+
+func _tomorrow_caption(day: int, gems: int) -> String:
+	return "TOMORROW: %s" % _gift_label((day % 7) + 1, gems)
+
+
+func _today() -> String:
+	var now := Time.get_datetime_dict_from_system()
+	return "%04d-%02d-%02d" % [int(now.year), int(now.month), int(now.day)]
+
+
+func _calendar_gap(earlier: String, later: String) -> int:
+	var a := earlier.split("-")
+	var b := later.split("-")
+	if a.size() != 3 or b.size() != 3:
+		return 99
+	var from := Time.get_unix_time_from_datetime_dict({
+		"year": int(a[0]), "month": int(a[1]), "day": int(a[2]), "hour": 12})
+	var to := Time.get_unix_time_from_datetime_dict({
+		"year": int(b[0]), "month": int(b[1]), "day": int(b[2]), "hour": 12})
+	return int(round((to - from) / 86400.0))
 
 
 static func _dict(value: Variant) -> Dictionary:

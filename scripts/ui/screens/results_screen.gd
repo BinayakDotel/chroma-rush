@@ -32,6 +32,7 @@ var _token: Button
 var _double: Button
 var _sections: Array[Control] = []
 var _portrait := true
+var _tomorrow: Label
 
 
 func _is_modal() -> bool:
@@ -73,6 +74,9 @@ func build() -> void:
 	_split.add_child(_right)
 	_stats = UiKit.hbox(0)
 	_inner.add_child(_stats)
+	_tomorrow = UiKit.centered(UiKit.text("", 19, true, 800))
+	_tomorrow.label_settings.font_color = UiKit.INK_SOFT
+	_inner.add_child(_tomorrow)
 	_mission_box = UiKit.vbox(14)
 	_inner.add_child(_mission_box)
 	_mission_box.add_child(_divider())
@@ -125,6 +129,7 @@ func show_summary(summary: Dictionary) -> void:
 	_stat("check", str(summary.gates), "GATES")
 	_stats.add_child(_divider(true))
 	_shards_value = _stat("shard", "+0", "SHARDS")
+	refresh_tomorrow()
 
 	for child in _missions.get_children():
 		child.queue_free()
@@ -183,6 +188,11 @@ func _on_goal_pressed() -> void:
 		ui.goal_unlock_requested.emit(str(_goal.get("id", "")))
 
 
+func refresh_tomorrow() -> void:
+	_tomorrow.text = Profile.tomorrow_line()
+	_tomorrow.visible = _portrait and not _tomorrow.text.is_empty()
+
+
 func hide_revive() -> void:
 	_revive.visible = false
 	_token.visible = false
@@ -202,7 +212,8 @@ func layout(portrait: bool) -> void:
 	_mission_box.visible = portrait and _missions.get_child_count() > 0
 	if portrait:
 		_adopt(_column, [_title, _score, _best_row, _card, _offers, _actions])
-		_adopt(_inner, [_stats, _mission_box, _goal_box, _goal_ready])
+		_adopt(_inner, [_stats, _tomorrow, _mission_box, _goal_box, _goal_ready])
+		_tomorrow.visible = not _tomorrow.text.is_empty()
 		if _split.get_parent() == _card:
 			_card.remove_child(_split)
 		if _inner.get_parent() != _card:
@@ -211,6 +222,7 @@ func layout(portrait: bool) -> void:
 		_adopt(_column, [_title, _card, _offers, _actions])
 		_adopt(_left, [_score, _best_row, _stats])
 		_adopt(_right, [_goal_box, _goal_ready])
+		_tomorrow.visible = false
 		if _inner.get_parent() == _card:
 			_card.remove_child(_inner)
 		if _split.get_parent() != _card:

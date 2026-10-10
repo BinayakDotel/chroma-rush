@@ -1,9 +1,9 @@
 # 007: Daily reward streak
 
-status: in progress
+status: in review
 base: main
 depends: []
-pr:
+pr: https://github.com/BinayakDotel/chroma-rush/pull/48
 
 ## Goal
 
@@ -42,4 +42,4 @@ What players should get:
 
 ## Outcome
 
-<!-- /implement fills this -->
+Players now get one local-day gift, claimed on home or one second after results, with a 7-day shard streak and a Phoenix gem (or 200 shards) on day 7. The card and the portrait results line say what tomorrow pays. A missed day or a clock set back does not skip ahead or pay twice. Risk: the calendar gap uses noon UTC, so a date line that is not `YYYY-MM-DD` is treated as a miss and pays day 1.
