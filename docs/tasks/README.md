@@ -13,4 +13,4 @@ Only `/refine`, `/implement`, `/address`, and `/done` change status.
 | 007 | done | Daily reward streak | — | https://github.com/BinayakDotel/chroma-rush/pull/48 |
 | 008 | done | Unlock the second world in the first session | — | https://github.com/BinayakDotel/chroma-rush/pull/46 |
 | 009 | in progress | A cover that gets clicked | — | |
-| 010 | todo | Release 1.0.2 to CrazyGames | 008 | |
+| 010 | in progress | Release 1.0.2 to CrazyGames | 008 | |
